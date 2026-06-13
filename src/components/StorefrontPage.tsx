@@ -16,7 +16,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Product {
+export interface Product {
   id: string;
   name: string;
   price: number;
@@ -74,14 +74,14 @@ function StarRating({ rating, reviews }: { rating: number; reviews: number }) {
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
 
-function ProductCard({ product, onAdd }: { product: Product; onAdd: (id: string) => void }) {
+function ProductCard({ product, onAdd, onClick }: { product: Product; onAdd: (id: string) => void; onClick: (id: string) => void }) {
   const [added, setAdded] = useState(false);
   const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
 
-  const handleAdd = () => { setAdded(true); onAdd(product.id); setTimeout(() => setAdded(false), 2000); };
+  const handleAdd = (e: React.MouseEvent) => { e.stopPropagation(); setAdded(true); onAdd(product.id); setTimeout(() => setAdded(false), 2000); };
 
   return (
-    <div className="bg-white border border-[#D5D9D9] hover:shadow-md transition-shadow flex flex-col h-full relative group">
+    <div onClick={() => onClick(product.id)} className="bg-white border border-[#D5D9D9] hover:shadow-md transition-shadow flex flex-col h-full relative group cursor-pointer">
       <div className="absolute top-2 left-2 z-10">
         <span className="bg-[#CC0C39] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm">-{discount}%</span>
       </div>
@@ -127,7 +127,133 @@ function ProductCard({ product, onAdd }: { product: Product; onAdd: (id: string)
           className={`mt-3 w-full py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 ${added ? 'bg-[#007600] text-white' : 'bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] border border-[#FCD200]'}`}>
           {added ? <span className="flex items-center justify-center gap-1"><CheckCircle className="w-4 h-4" />Added</span> : <span className="flex items-center justify-center gap-1"><ShoppingCart className="w-4 h-4" />Add to Cart</span>}
         </button>
-        <button className="mt-1.5 w-full py-1.5 rounded-full text-sm font-medium bg-[#FFA41C] hover:bg-[#FA8900] text-[#0F1111] border border-[#FF8F00]">Buy Now</button>
+        <button onClick={(e) => e.stopPropagation()} className="mt-1.5 w-full py-1.5 rounded-full text-sm font-medium bg-[#FFA41C] hover:bg-[#FA8900] text-[#0F1111] border border-[#FF8F00]">Buy Now</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Product Detail Page (PDP) ────────────────────────────────────────────────
+
+function ProductDetailPage({ product, onBack, onAdd }: { product: Product; onBack: () => void; onAdd: (id: string) => void }) {
+  const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+  
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-4 bg-white min-h-screen">
+      {/* Breadcrumb */}
+      <div className="text-xs text-[#565959] mb-4 flex items-center gap-1">
+        <button onClick={onBack} className="hover:underline text-[#565959]">Storefront</button>
+        <span>›</span>
+        <span className="hover:underline cursor-pointer">Electronics</span>
+        <span>›</span>
+        <span className="font-bold text-[#0F1111]">{product.name.split(' ')[0]}</span>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-8">
+        {/* Left: Image */}
+        <div className="w-full md:w-[40%] flex flex-col items-center">
+          <div className="w-full aspect-square bg-[#F7F8F8] border border-[#D5D9D9] flex items-center justify-center rounded mb-4">
+            <span className="text-[150px]">{product.icon}</span>
+          </div>
+          <div className="flex gap-2 w-full justify-center">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className={`w-12 h-12 border ${i === 1 ? 'border-[#FF9900] shadow-[0_0_3px_#FF9900]' : 'border-[#D5D9D9]'} rounded flex items-center justify-center bg-[#F7F8F8] cursor-pointer hover:border-[#FF9900]`}>
+                <span className="text-xl">{product.icon}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Middle: Info */}
+        <div className="w-full md:w-[40%]">
+          <h1 className="text-2xl text-[#0F1111] font-medium leading-tight mb-1">{product.name}</h1>
+          <a href="#" className="text-sm text-[#007185] hover:text-[#C7511F] hover:underline mb-2 block">
+            Visit the {product.type === 'renewed' ? 'Amazon Renewed' : product.seller} Store
+          </a>
+          <div className="border-b border-[#D5D9D9] pb-2 mb-2 flex items-center gap-4">
+            <StarRating rating={product.rating} reviews={product.reviews} />
+            <div className="flex items-center gap-1">
+              {product.type === 'renewed' ? (
+                <span className="inline-flex items-center gap-0.5 bg-[#F0F2F2] border border-[#D5D9D9] text-[10px] font-semibold px-1.5 py-0.5 rounded-sm"><Recycle className="w-2.5 h-2.5 text-[#007600]" />Amazon Renewed</span>
+              ) : (
+                <span className="inline-flex items-center gap-0.5 bg-[#F0F2F2] border border-[#D5D9D9] text-[10px] font-semibold px-1.5 py-0.5 rounded-sm"><Users className="w-2.5 h-2.5 text-[#007185]" />P2P Listing</span>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-3xl text-[#CC0C39] font-light">-{discount}%</span>
+              <span className="text-xs text-[#0F1111] align-top mt-1">₹</span>
+              <span className="text-3xl font-medium text-[#0F1111]">{product.price.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="text-xs text-[#565959]">
+              M.R.P.: <span className="line-through">₹{product.originalPrice.toLocaleString('en-IN')}</span>
+            </div>
+            <p className="text-sm text-[#0F1111] mt-1">Inclusive of all taxes</p>
+          </div>
+
+          {/* EcoBridge Impact Box */}
+          <div className="bg-[#E7F4E4]/30 border border-[#C3E6C0] rounded p-3 mb-5">
+            <div className="flex items-center gap-2 mb-2">
+              <Leaf className="w-5 h-5 text-[#007600]" />
+              <span className="font-bold text-[#007600]">EcoBridge Impact</span>
+            </div>
+            <ul className="text-sm text-[#0F1111] space-y-1.5">
+              <li><span className="font-bold">Green Coins:</span> Earn <span className="text-[#007600] font-bold">{product.greenCoins} 🪙</span> on purchase</li>
+              <li><span className="font-bold">Carbon Saved:</span> {product.co2Saved} CO₂ emissions diverted</li>
+              <li><span className="font-bold">Condition:</span> AI-Verified Grade {product.grade} {product.aiScore && `(${product.aiScore}/100)`}</li>
+            </ul>
+          </div>
+
+          <h3 className="font-bold text-base text-[#0F1111] mb-2">About this item</h3>
+          <ul className="list-disc pl-5 text-sm text-[#0F1111] space-y-1">
+            <li>Professionally inspected, tested, and cleaned to work and look like new.</li>
+            <li>Backed by the 90-day Amazon Renewed Guarantee.</li>
+            <li>Battery capacity exceeds 80% capacity relative to its new equivalent.</li>
+            <li>Box and accessories may be generic.</li>
+          </ul>
+        </div>
+
+        {/* Right: Buy Box */}
+        <div className="w-full md:w-[20%]">
+          <div className="border border-[#D5D9D9] rounded-lg p-4">
+            <div className="flex items-baseline gap-0.5 mb-2">
+              <span className="text-sm text-[#0F1111]">₹</span>
+              <span className="text-2xl font-medium text-[#0F1111]">{product.price.toLocaleString('en-IN')}</span>
+            </div>
+            {product.freeDelivery && (
+              <p className="text-sm text-[#007185] mb-2 hover:text-[#C7511F] hover:underline cursor-pointer">
+                <span className="text-[#0F1111]">FREE delivery</span> <b>Tomorrow, June 15</b>. Order within 4 hrs 30 mins.
+              </p>
+            )}
+            
+            <h3 className="text-lg text-[#007600] font-medium mb-3">In stock</h3>
+            
+            <div className="flex flex-col gap-1 text-xs text-[#0F1111] mb-4">
+              <div className="flex justify-between"><span className="text-[#565959]">Ships from</span><span>Amazon</span></div>
+              <div className="flex justify-between"><span className="text-[#565959]">Sold by</span><span className="text-[#007185] hover:underline cursor-pointer">{product.type === 'renewed' ? 'Amazon Renewed' : product.seller}</span></div>
+            </div>
+
+            <div className="mb-4">
+              <select className="w-full border border-[#D5D9D9] rounded p-1.5 text-sm bg-[#F0F2F2] shadow-sm outline-none focus:border-[#007185]">
+                <option>Quantity: 1</option>
+                <option>Quantity: 2</option>
+              </select>
+            </div>
+
+            <button onClick={() => onAdd(product.id)} className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] font-medium py-2 rounded-full text-sm border border-[#FCD200] mb-2 transition-colors">
+              Add to Cart
+            </button>
+            <button className="w-full bg-[#FFA41C] hover:bg-[#FA8900] text-[#0F1111] font-medium py-2 rounded-full text-sm border border-[#FF8F00] transition-colors mb-3">
+              Buy Now
+            </button>
+
+            <div className="flex items-center justify-center gap-2 text-sm text-[#007185] hover:text-[#C7511F] hover:underline cursor-pointer">
+              <CheckCircle className="w-4 h-4 text-[#999]" /> Secure transaction
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -135,18 +261,63 @@ function ProductCard({ product, onAdd }: { product: Product; onAdd: (id: string)
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function StorefrontPage() {
+export function StorefrontPage({ onGoToCart, onAddToCart }: { onGoToCart?: () => void; onAddToCart?: (p: Product) => void }) {
   const [activeTab, setActiveTab] = useState<'all' | 'renewed' | 'p2p'>('all');
   const [searchQuery] = useState('');
-  const [toast, setToast] = useState<string | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartItem, setCartItem] = useState<Product | null>(null);
 
   const handleAdd = (id: string) => {
     const p = [...RENEWED_PRODUCTS, ...P2P_PRODUCTS].find((x) => x.id === id);
-    if (p) { setToast(`"${p.name.slice(0, 35)}…" added · +${p.greenCoins} 🪙`); setTimeout(() => setToast(null), 3500); }
+    if (p) { 
+      setCartItem(p);
+      setCartOpen(true);
+      if (onAddToCart) onAddToCart(p);
+      // Auto close after 5s
+      setTimeout(() => setCartOpen(false), 5000);
+    }
   };
 
   const renewed = RENEWED_PRODUCTS.filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const p2p = P2P_PRODUCTS.filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  // If a product is selected, render the PDP
+  if (selectedProductId) {
+    const p = [...RENEWED_PRODUCTS, ...P2P_PRODUCTS].find((x) => x.id === selectedProductId);
+    if (p) {
+      return (
+        <>
+          <ProductDetailPage product={p} onBack={() => setSelectedProductId(null)} onAdd={handleAdd} />
+          {/* Cart Side Drawer */}
+          {cartOpen && cartItem && (
+            <div className="fixed top-[108px] right-0 bottom-0 w-80 bg-white shadow-[-5px_0_15px_rgba(0,0,0,0.1)] z-50 border-l border-[#D5D9D9] p-4 animate-in slide-in-from-right">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-[#0F1111] flex items-center gap-2"><CheckCircle className="w-5 h-5 text-[#007600]" /> Added to Cart</h2>
+                <button onClick={() => setCartOpen(false)} className="text-[#565959] hover:text-[#0F1111]">✕</button>
+              </div>
+              <div className="flex gap-3 mb-4">
+                <div className="w-16 h-16 bg-[#F7F8F8] border border-[#D5D9D9] rounded flex items-center justify-center text-3xl shrink-0">{cartItem.icon}</div>
+                <div>
+                  <div className="text-sm text-[#0F1111] font-medium line-clamp-2 leading-tight mb-1">{cartItem.name}</div>
+                  <div className="text-[#B12704] font-bold">₹{cartItem.price.toLocaleString('en-IN')}</div>
+                </div>
+              </div>
+              <div className="bg-[#FFFBF0] border border-[#FFD814]/40 p-2 rounded text-xs mb-4">
+                <span className="font-bold text-[#007600]">+ {cartItem.greenCoins} 🪙 Green Coins earned!</span>
+              </div>
+              <button 
+                onClick={() => { setCartOpen(false); onGoToCart && onGoToCart(); }} 
+                className="w-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] text-[#0F1111] font-medium py-2 rounded-full mb-2">
+                Cart & Checkout
+              </button>
+              <button onClick={() => setCartOpen(false)} className="w-full border border-[#D5D9D9] hover:bg-[#F7F8F8] text-[#0F1111] font-medium py-2 rounded-full">Continue Shopping</button>
+            </div>
+          )}
+        </>
+      );
+    }
+  }
 
   return (
     <>
@@ -229,7 +400,7 @@ export function StorefrontPage() {
               <a href="#" className="text-[#007185] hover:text-[#C7511F] text-sm hover:underline flex items-center gap-1">See all <ArrowRight className="w-3.5 h-3.5" /></a>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px">
-              {renewed.map((p) => <ProductCard key={p.id} product={p} onAdd={handleAdd} />)}
+              {renewed.map((p) => <ProductCard key={p.id} product={p} onAdd={handleAdd} onClick={setSelectedProductId} />)}
             </div>
           </section>
         )}
@@ -248,7 +419,7 @@ export function StorefrontPage() {
               <a href="#" className="text-[#007185] hover:text-[#C7511F] text-sm hover:underline flex items-center gap-1">See all <ArrowRight className="w-3.5 h-3.5" /></a>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px">
-              {p2p.map((p) => <ProductCard key={p.id} product={p} onAdd={handleAdd} />)}
+              {p2p.map((p) => <ProductCard key={p.id} product={p} onAdd={handleAdd} onClick={setSelectedProductId} />)}
             </div>
           </section>
         )}
@@ -281,10 +452,29 @@ export function StorefrontPage() {
         </div>
       </div>
 
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 right-4 z-50 bg-[#232F3E] text-white px-4 py-3 rounded shadow-2xl flex items-center gap-3 max-w-sm border border-[#37475A]">
-          <CheckCircle className="w-5 h-5 text-[#FF9900] shrink-0" /><span className="text-sm">{toast}</span>
+      {/* Cart Side Drawer */}
+      {cartOpen && cartItem && (
+        <div className="fixed top-[108px] right-0 bottom-0 w-80 bg-white shadow-[-5px_0_15px_rgba(0,0,0,0.1)] z-50 border-l border-[#D5D9D9] p-4 animate-in slide-in-from-right">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-[#0F1111] flex items-center gap-2"><CheckCircle className="w-5 h-5 text-[#007600]" /> Added to Cart</h2>
+            <button onClick={() => setCartOpen(false)} className="text-[#565959] hover:text-[#0F1111]">✕</button>
+          </div>
+          <div className="flex gap-3 mb-4">
+            <div className="w-16 h-16 bg-[#F7F8F8] border border-[#D5D9D9] rounded flex items-center justify-center text-3xl shrink-0">{cartItem.icon}</div>
+            <div>
+              <div className="text-sm text-[#0F1111] font-medium line-clamp-2 leading-tight mb-1">{cartItem.name}</div>
+              <div className="text-[#B12704] font-bold">₹{cartItem.price.toLocaleString('en-IN')}</div>
+            </div>
+          </div>
+          <div className="bg-[#FFFBF0] border border-[#FFD814]/40 p-2 rounded text-xs mb-4">
+            <span className="font-bold text-[#007600]">+ {cartItem.greenCoins} 🪙 Green Coins earned!</span>
+          </div>
+          <button 
+            onClick={() => { setCartOpen(false); onGoToCart && onGoToCart(); }} 
+            className="w-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] text-[#0F1111] font-medium py-2 rounded-full mb-2">
+            Cart & Checkout
+          </button>
+          <button onClick={() => setCartOpen(false)} className="w-full border border-[#D5D9D9] hover:bg-[#F7F8F8] text-[#0F1111] font-medium py-2 rounded-full">Continue Shopping</button>
         </div>
       )}
     </>

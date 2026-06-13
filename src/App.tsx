@@ -3,7 +3,7 @@ import { AmazonShell, type Persona } from './components/AmazonShell';
 import { ViewA } from './components/ViewA';
 import { ViewB } from './components/ViewB';
 import { ViewC } from './components/ViewC';
-import { StorefrontPage } from './components/StorefrontPage';
+import { StorefrontPage, type Product } from './components/StorefrontPage';
 import { X } from 'lucide-react';
 
 type ActiveFlow = null | 'seller' | 'returner' | 'buyer';
@@ -11,11 +11,18 @@ type ActiveFlow = null | 'seller' | 'returner' | 'buyer';
 function App() {
   const [persona, setPersona] = useState<Persona>('storefront');
   const [activeFlow, setActiveFlow] = useState<ActiveFlow>(null);
+  const [homeKey, setHomeKey] = useState(0);
+  const [cart, setCart] = useState<Product[]>([]);
 
   // When persona changes, close any open flow to simulate a fresh state for that user
   const handlePersonaChange = (p: Persona) => {
     setPersona(p);
     setActiveFlow(null);
+  };
+
+  const handleHomeClick = () => {
+    setActiveFlow(null);
+    setHomeKey(k => k + 1); // Triggers a re-mount of StorefrontPage to close the PDP
   };
 
   // Clicking "Returns & Orders" routes based on the current persona
@@ -32,15 +39,30 @@ function App() {
     setActiveFlow('buyer');
   };
 
+  const handleAddToCart = (product: Product) => {
+    setCart(prev => {
+      if (prev.some(item => item.id === product.id)) {
+        return prev;
+      }
+      return [...prev, product];
+    });
+  };
+
+  const handleRemoveFromCart = (productId: string) => {
+    setCart(prev => prev.filter(item => item.id !== productId));
+  };
+
   return (
     <AmazonShell 
       persona={persona} 
       setPersona={handlePersonaChange}
+      onHomeClick={handleHomeClick}
       onOrdersClick={handleOrdersClick}
       onCartClick={handleCartClick}
+      cartCount={cart.length}
     >
       {/* ─── Storefront is ALWAYS the base content ─── */}
-      <StorefrontPage />
+      <StorefrontPage key={homeKey} onGoToCart={handleCartClick} onAddToCart={handleAddToCart} />
 
       {/* ─── Flow Overlays (open on top of storefront) ─── */}
       {activeFlow !== null && (
@@ -67,7 +89,7 @@ function App() {
           {/* Flow content */}
           {activeFlow === 'seller' && <ViewA />}
           {activeFlow === 'returner' && <ViewB />}
-          {activeFlow === 'buyer' && <ViewC />}
+          {activeFlow === 'buyer' && <ViewC cart={cart} onRemoveFromCart={handleRemoveFromCart} />}
         </div>
       )}
     </AmazonShell>

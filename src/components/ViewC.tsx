@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Package, Leaf, CheckCircle, ShieldCheck, ShoppingCart, Loader2, X } from 'lucide-react';
+import { type Product } from './StorefrontPage';
 
 type State = 'loading' | 'checkout' | 'success';
 
@@ -22,13 +23,28 @@ interface InterceptResult {
 
 const API_URL = import.meta.env.VITE_ECOBRIDGE_API_URL || 'https://4w990xpwkg.execute-api.ap-south-1.amazonaws.com/prod';
 
-export function ViewC() {
+export function ViewC({ cart = [], onRemoveFromCart }: { cart?: Product[]; onRemoveFromCart?: (id: string) => void }) {
   const [state, setState] = useState<State>('loading');
   const [showModal, setShowModal] = useState(false);
   const [interceptData, setInterceptData] = useState<InterceptResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hadItems, setHadItems] = useState(cart.length > 0);
+  const [mockDeleted, setMockDeleted] = useState(false);
 
   useEffect(() => {
+    if (cart.length > 0) {
+      setHadItems(true);
+    }
+  }, [cart.length]);
+
+  useEffect(() => {
+    // If the cart already has items from the Storefront, they are already eco-items.
+    // Skip the intercept API call entirely.
+    if (cart.length > 0) {
+      setState('success'); // Already eco
+      return;
+    }
+
     let cancelled = false;
     async function checkLocalInventory() {
       try {
@@ -51,13 +67,21 @@ export function ViewC() {
     }
     checkLocalInventory();
     return () => { cancelled = true; };
-  }, []);
+  }, [cart.length]);
 
   const handleAccept = () => { setShowModal(false); setState('success'); };
-  const isEco = state === 'success';
+  
+  // Calculate dynamic totals if cart has items
+  const isDynamicCart = cart.length > 0;
+  const dynamicSubtotal = cart.reduce((sum, item) => sum + item.price, 0);
+  const dynamicCoins = cart.reduce((sum, item) => sum + item.greenCoins, 0);
+
+  const isEco = isDynamicCart || state === 'success';
   const matchedItem = interceptData?.item;
   const ecoPrice = matchedItem ? `₹${matchedItem.price.toLocaleString('en-IN')}.00` : '₹2,500.00';
   const discountPercent = interceptData?.eco_discount_percent ?? 37;
+
+  const isEmpty = (hadItems && cart.length === 0) || mockDeleted;
 
   // ─── LOADING ────────────────────────────────────────────────────────────────
   if (state === 'loading') {
@@ -73,6 +97,21 @@ export function ViewC() {
   }
 
   // ─── CHECKOUT (Amazon Cart) ─────────────────────────────────────────────────
+  if (isEmpty) {
+    return (
+      <div className="pb-10">
+        <div className="max-w-5xl mx-auto p-4 mt-2">
+          <h1 className="text-2xl font-medium text-[#0F1111] mb-4">Shopping Cart</h1>
+          <div className="bg-white border border-[#D5D9D9] rounded p-10 text-center shadow-sm">
+            <ShoppingCart className="w-16 h-16 text-[#D5D9D9] mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-[#0F1111] mb-2">Your Amazon Cart is empty.</h2>
+            <p className="text-sm text-[#565959] mb-6">Explore second-life and renewed deals on the storefront to earn Green Coins!</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pb-10">
       <div className="max-w-5xl mx-auto p-4 mt-2">
@@ -88,45 +127,94 @@ export function ViewC() {
               <span className="text-[#565959] text-sm">Price</span>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-5 items-start">
-              {/* Image */}
-              <div className="w-32 h-32 bg-[#F7F8F8] rounded flex items-center justify-center shrink-0 relative border border-[#D5D9D9]">
-                <Package className="w-12 h-12 text-[#D5D9D9]" />
-                {isEco && (
-                  <div className="absolute inset-0 border-2 border-[#007600] rounded flex items-start justify-end p-1">
-                    <div className="bg-[#007600] rounded-full p-0.5"><Leaf className="w-3 h-3 text-white" /></div>
-                  </div>
-                )}
-              </div>
+            <div className="flex flex-col gap-6">
+              {isDynamicCart ? (
+                cart.map((item, idx) => (
+                  <div key={idx} className="flex flex-col sm:flex-row gap-5 items-start">
+                    {/* Image */}
+                    <div className="w-32 h-32 bg-[#F7F8F8] rounded flex items-center justify-center shrink-0 relative border border-[#D5D9D9] text-6xl">
+                      {item.icon}
+                      <div className="absolute inset-0 border-2 border-[#007600] rounded flex items-start justify-end p-1">
+                        <div className="bg-[#007600] rounded-full p-0.5"><Leaf className="w-3 h-3 text-white" /></div>
+                      </div>
+                    </div>
 
-              {/* Details */}
-              <div className="grow">
-                <h2 className="text-base font-medium text-[#0F1111] mb-0.5 flex items-center flex-wrap gap-2">
-                  {matchedItem?.product_name || 'Pro Running Shoes - Size 9'}
-                  {isEco && <span className="bg-[#E7F4E4] border border-[#C3E6C0] text-[#007600] text-[10px] font-bold px-2 py-0.5 rounded-sm flex items-center"><Leaf className="w-3 h-3 mr-0.5" />EcoBridge Certified</span>}
-                </h2>
-                <p className="text-xs text-[#007600] font-medium mb-0.5">In Stock</p>
-                <p className="text-xs text-[#565959] mb-3">Eligible for FREE Shipping</p>
-                <div className="flex items-center text-xs text-[#565959] gap-2">
-                  <span className="bg-[#F0F2F2] border border-[#D5D9D9] px-2 py-0.5 rounded">Qty: 1</span>
-                  <span>|</span>
-                  <button className="text-[#007185] hover:text-[#C7511F] hover:underline">Delete</button>
-                  <span>|</span>
-                  <button className="text-[#007185] hover:text-[#C7511F] hover:underline">Save for later</button>
+                    {/* Details */}
+                    <div className="grow">
+                      <h2 className="text-base font-medium text-[#0F1111] mb-0.5 flex items-center flex-wrap gap-2">
+                        {item.name}
+                        <span className="bg-[#E7F4E4] border border-[#C3E6C0] text-[#007600] text-[10px] font-bold px-2 py-0.5 rounded-sm flex items-center"><Leaf className="w-3 h-3 mr-0.5" />EcoBridge Certified</span>
+                      </h2>
+                      <p className="text-xs text-[#007600] font-medium mb-0.5">In Stock</p>
+                      <p className="text-xs text-[#565959] mb-3">Eligible for FREE Shipping</p>
+                      <div className="flex items-center text-xs text-[#565959] gap-2">
+                        <span className="bg-[#F0F2F2] border border-[#D5D9D9] px-2 py-0.5 rounded">Qty: 1</span>
+                        <span>|</span>
+                        <button 
+                          onClick={() => onRemoveFromCart && onRemoveFromCart(item.id)}
+                          className="text-[#007185] hover:text-[#C7511F] hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <div className="mt-3 flex items-center gap-1 bg-[#FFFBF0] border border-[#FFD814]/40 rounded-sm px-2 py-1 w-fit">
+                        <Leaf className="w-3 h-3 text-[#007600]" />
+                        <span className="text-[10px] text-[#0F1111]">You saved <span className="font-bold text-[#007600]">{item.co2Saved}</span> with EcoBridge</span>
+                      </div>
+                    </div>
+
+                    {/* Price */}
+                    <div className="text-right shrink-0">
+                      <div className="text-lg font-bold text-[#565959] line-through text-sm">₹{item.originalPrice.toLocaleString('en-IN')}</div>
+                      <div className="text-lg font-bold text-[#007600] mt-0.5">₹{item.price.toLocaleString('en-IN')}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col sm:flex-row gap-5 items-start">
+                  {/* Image */}
+                  <div className="w-32 h-32 bg-[#F7F8F8] rounded flex items-center justify-center shrink-0 relative border border-[#D5D9D9]">
+                    <Package className="w-12 h-12 text-[#D5D9D9]" />
+                    {isEco && (
+                      <div className="absolute inset-0 border-2 border-[#007600] rounded flex items-start justify-end p-1">
+                        <div className="bg-[#007600] rounded-full p-0.5"><Leaf className="w-3 h-3 text-white" /></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Details */}
+                  <div className="grow">
+                    <h2 className="text-base font-medium text-[#0F1111] mb-0.5 flex items-center flex-wrap gap-2">
+                      {matchedItem?.product_name || 'Pro Running Shoes - Size 9'}
+                      {isEco && <span className="bg-[#E7F4E4] border border-[#C3E6C0] text-[#007600] text-[10px] font-bold px-2 py-0.5 rounded-sm flex items-center"><Leaf className="w-3 h-3 mr-0.5" />EcoBridge Certified</span>}
+                    </h2>
+                    <p className="text-xs text-[#007600] font-medium mb-0.5">In Stock</p>
+                    <p className="text-xs text-[#565959] mb-3">Eligible for FREE Shipping</p>
+                    <div className="flex items-center text-xs text-[#565959] gap-2">
+                      <span className="bg-[#F0F2F2] border border-[#D5D9D9] px-2 py-0.5 rounded">Qty: 1</span>
+                      <span>|</span>
+                      <button 
+                        onClick={() => setMockDeleted(true)}
+                        className="text-[#007185] hover:text-[#C7511F] hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                    {isEco && (
+                      <div className="mt-3 flex items-center gap-1 bg-[#FFFBF0] border border-[#FFD814]/40 rounded-sm px-2 py-1 w-fit">
+                        <Leaf className="w-3 h-3 text-[#007600]" />
+                        <span className="text-[10px] text-[#0F1111]">You saved <span className="font-bold text-[#007600]">{matchedItem?.carbon_saved_estimate || '8.2kg CO2'}</span> with EcoBridge</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Price */}
+                  <div className="text-right shrink-0">
+                    <div className={`text-lg font-bold ${isEco ? 'text-[#565959] line-through text-sm' : 'text-[#0F1111]'}`}>₹4,000.00</div>
+                    {isEco && <div className="text-lg font-bold text-[#007600] mt-0.5">{ecoPrice}</div>}
+                  </div>
                 </div>
-                {isEco && (
-                  <div className="mt-3 flex items-center gap-1 bg-[#FFFBF0] border border-[#FFD814]/40 rounded-sm px-2 py-1 w-fit">
-                    <Leaf className="w-3 h-3 text-[#007600]" />
-                    <span className="text-[10px] text-[#0F1111]">You saved <span className="font-bold text-[#007600]">{matchedItem?.carbon_saved_estimate || '8.2kg CO2'}</span> with EcoBridge</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Price */}
-              <div className="text-right shrink-0">
-                <div className={`text-lg font-bold ${isEco ? 'text-[#565959] line-through text-sm' : 'text-[#0F1111]'}`}>₹4,000.00</div>
-                {isEco && <div className="text-lg font-bold text-[#007600] mt-0.5">{ecoPrice}</div>}
-              </div>
+              )}
             </div>
           </div>
 
@@ -140,7 +228,7 @@ export function ViewC() {
                 </div>
               )}
               <h3 className="text-base text-[#0F1111] mb-3">
-                Subtotal (1 item): <span className="font-bold">{isEco ? ecoPrice : '₹4,000.00'}</span>
+                Subtotal ({isDynamicCart ? cart.length : 1} item{cart.length !== 1 && isDynamicCart ? 's' : ''}): <span className="font-bold">{isDynamicCart ? `₹${dynamicSubtotal.toLocaleString('en-IN')}.00` : (isEco ? ecoPrice : '₹4,000.00')}</span>
               </h3>
               <button className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] font-medium py-2 rounded-full text-sm border border-[#FCD200] transition-colors">
                 Proceed to Buy
@@ -154,7 +242,7 @@ export function ViewC() {
                 <span className="text-sm font-bold text-[#0F1111]">Green Coins</span>
               </div>
               <p className="text-xs text-[#565959]">
-                This purchase earns you <span className="font-bold text-[#007600]">25 🪙</span> Green Coins. Redeem for ₹1 off per 10 coins.
+                This purchase earns you <span className="font-bold text-[#007600]">{isDynamicCart ? dynamicCoins : 25} 🪙</span> Green Coins. Redeem for ₹1 off per 10 coins.
               </p>
             </div>
           </div>

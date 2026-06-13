@@ -12,7 +12,7 @@ const PERSONA_META: Record<Persona, { name: string; greeting: string; label: str
 };
 
 const SUB_NAV = [
-  '🌿 Second Life', '♻️ Amazon Renewed', '👤 P2P Marketplace', "Today's Deals", 
+  '🌿 Second Life', '♻️ Amazon Renewed', '👤 P2P Marketplace', "Today's Deals",
   'Electronics', 'Fashion', 'Home & Kitchen', 'Books'
 ];
 
@@ -20,13 +20,15 @@ const SUB_NAV = [
 interface AmazonShellProps {
   persona: Persona;
   setPersona: (p: Persona) => void;
+  onHomeClick?: () => void;
   onOrdersClick?: () => void;
   onCartClick?: () => void;
+  cartCount?: number;
   children: ReactNode;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export function AmazonShell({ persona, setPersona, onOrdersClick, onCartClick, children }: AmazonShellProps) {
+export function AmazonShell({ persona, setPersona, onHomeClick, onOrdersClick, onCartClick, cartCount = 0, children }: AmazonShellProps) {
   const meta = PERSONA_META[persona];
 
   return (
@@ -37,7 +39,10 @@ export function AmazonShell({ persona, setPersona, onOrdersClick, onCartClick, c
         <div className="flex items-center gap-2 px-3 py-2">
 
           {/* Logo */}
-          <a href="#" onClick={() => setPersona('storefront')} className="flex flex-col items-start mr-1 shrink-0 border border-transparent hover:border-white rounded px-2 py-1">
+          <div 
+            className="flex flex-col items-start mr-1 shrink-0 border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer"
+            onClick={onHomeClick}
+          >
             <div className="flex items-baseline gap-0.5">
               <span className="text-white font-bold text-xl leading-tight tracking-tight">amazon</span>
               <span className="text-[#FF9900] text-[9px] font-semibold">.in</span>
@@ -46,7 +51,7 @@ export function AmazonShell({ persona, setPersona, onOrdersClick, onCartClick, c
               <Leaf className="w-2.5 h-2.5 text-[#FF9900]" />
               <span className="text-[#FF9900] text-[8px] font-bold tracking-widest uppercase">Second Life</span>
             </div>
-          </a>
+          </div>
 
           {/* Deliver to */}
           <div className="hidden lg:flex flex-col shrink-0 border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer">
@@ -119,7 +124,7 @@ export function AmazonShell({ persona, setPersona, onOrdersClick, onCartClick, c
               <div className="relative">
                 <ShoppingCart className="w-8 h-8 text-white" />
                 <span className="absolute -top-1 left-5 bg-[#FF9900] text-[#0F1111] text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center leading-none">
-                  {persona === 'amit' ? '1' : '0'}
+                  {cartCount}
                 </span>
               </div>
               <span className="text-white text-xs font-bold ml-0.5 hidden sm:block">Cart</span>

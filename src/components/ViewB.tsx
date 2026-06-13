@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import Webcam from 'react-webcam';
-import { Package, Leaf, X, CheckCircle, Camera, ChevronRight, Recycle, ArrowRight } from 'lucide-react';
+import { Package, Leaf, X, CheckCircle, Camera, Recycle, ArrowRight } from 'lucide-react';
 
 type State = 'orders' | 'scanning' | 'modal' | 'toast';
 
