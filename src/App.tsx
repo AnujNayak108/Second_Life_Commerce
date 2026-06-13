@@ -16,21 +16,83 @@ function App() {
   const [homeKey, setHomeKey] = useState(0);
   const [cart, setCart] = useState<Product[]>([]);
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
-  const [orders, setOrders] = useState<any[]>([
-    {
-      id: 'mock_shoes',
-      orderId: '402-7291058-3148621',
-      name: 'Pro Running Shoes - Size 9',
-      price: 4000,
-      originalPrice: 4000,
-      datePlaced: 'Yesterday',
-      status: 'Delivered Yesterday',
-      icon: '👟',
-      freeDelivery: true,
-      prime: true,
-      isReturnable: true
-    }
-  ]);
+  const [orders, setOrders] = useState<Record<Persona, any[]>>({
+    storefront: [
+      {
+        id: 'mock_shoes_storefront',
+        orderId: '402-7291058-3148621',
+        name: 'Pro Running Shoes - Size 9',
+        price: 4000,
+        originalPrice: 4000,
+        datePlaced: 'Yesterday',
+        status: 'Delivered Yesterday',
+        icon: '👟',
+        freeDelivery: true,
+        prime: true,
+        isReturnable: true
+      }
+    ],
+    amit: [
+      {
+        id: 'mock_shoes_amit',
+        orderId: '402-7291058-3148621',
+        name: 'Pro Running Shoes - Size 9',
+        price: 4000,
+        originalPrice: 4000,
+        datePlaced: 'Yesterday',
+        status: 'Delivered Yesterday',
+        icon: '👟',
+        freeDelivery: true,
+        prime: true,
+        isReturnable: true
+      }
+    ],
+    priya: [
+      {
+        id: 'mock_shoes_priya',
+        orderId: '402-7291058-3148621',
+        name: 'Pro Running Shoes - Size 9',
+        price: 4000,
+        originalPrice: 4000,
+        datePlaced: 'Yesterday',
+        status: 'Delivered Yesterday',
+        icon: '👟',
+        freeDelivery: true,
+        prime: true,
+        isReturnable: true
+      }
+    ],
+    rahul: [
+      {
+        id: 'mock_shoes_rahul',
+        orderId: '402-7291058-3148621',
+        name: 'Pro Running Shoes - Size 9',
+        price: 4000,
+        originalPrice: 4000,
+        datePlaced: 'Yesterday',
+        status: 'Delivered Yesterday',
+        icon: '👟',
+        freeDelivery: true,
+        prime: true,
+        isReturnable: true
+      }
+    ],
+    admin: [
+      {
+        id: 'mock_shoes_admin',
+        orderId: '402-7291058-3148621',
+        name: 'Pro Running Shoes - Size 9',
+        price: 4000,
+        originalPrice: 4000,
+        datePlaced: 'Yesterday',
+        status: 'Delivered Yesterday',
+        icon: '👟',
+        freeDelivery: true,
+        prime: true,
+        isReturnable: true
+      }
+    ]
+  });
 
   // Sync state with popstate event (e.g. browser back/forward buttons)
   useEffect(() => {
@@ -109,7 +171,10 @@ function App() {
       greenCoins: (item as any).greenCoins
     }));
 
-    setOrders(prev => [...newOrders, ...prev]);
+    setOrders(prev => ({
+      ...prev,
+      [persona]: [...newOrders, ...prev[persona]]
+    }));
     setCart([]);
   };
 
@@ -173,7 +238,7 @@ function App() {
           </div>
           {/* Flow content */}
           {activeFlow === 'seller' && <ViewA />}
-          {activeFlow === 'returner' && <ViewB orders={orders} />}
+          {activeFlow === 'returner' && <ViewB orders={orders[persona]} />}
           {activeFlow === 'buyer' && (
             <ViewC 
               cart={cart} 
