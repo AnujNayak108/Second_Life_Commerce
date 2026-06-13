@@ -4,7 +4,7 @@ import { ViewA } from './components/ViewA';
 import { ViewB } from './components/ViewB';
 import { ViewC } from './components/ViewC';
 import { StorefrontPage, type Product } from './components/StorefrontPage';
-import { SecondLifePage } from './components/SecondLifePage';
+import { CustomerStorefrontPage } from './components/CustomerStorefrontPage';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { X } from 'lucide-react';
 
@@ -15,11 +15,7 @@ function App() {
   const [activeFlow, setActiveFlow] = useState<ActiveFlow>(null);
   const [homeKey, setHomeKey] = useState(0);
   const [cart, setCart] = useState<Product[]>([]);
-  
-  // Lifted user stats states for sync with header Eco Credits badge
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
-  const [ecoCredits, setEcoCredits] = useState(5400);
-  const [userCo2Saved, setUserCo2Saved] = useState(32.5);
 
   // Sync state with popstate event (e.g. browser back/forward buttons)
   useEffect(() => {
@@ -79,33 +75,28 @@ function App() {
   }
 
   return (
-    <AmazonShell 
-      persona={persona} 
-      setPersona={handlePersonaChange}
-      onHomeClick={handleHomeClick}
-      onOrdersClick={handleOrdersClick}
-      onCartClick={handleCartClick}
-      onSecondLifeClick={() => navigateTo('/second-life')}
-      cartCount={cart.length}
-      ecoCredits={ecoCredits}
-    >
-      {/* ─── Route Conditional Base Content ─── */}
+    <>
       {currentPath === '/second-life' ? (
-        <SecondLifePage 
-          onGoToCart={handleCartClick} 
-          onAddToCart={handleAddToCart} 
-          onBackToStorefront={() => navigateTo('/')}
-          userEcoCredits={ecoCredits}
-          setUserEcoCredits={setEcoCredits}
-          userCo2Saved={userCo2Saved}
-          setUserCo2Saved={setUserCo2Saved}
-        />
+        <AmazonShell 
+          persona={persona} 
+          setPersona={handlePersonaChange}
+          onHomeClick={handleHomeClick}
+          onOrdersClick={handleOrdersClick}
+          onCartClick={handleCartClick}
+          cartCount={cart.length}
+        >
+          {/* ─── Storefront is ALWAYS the base content for SecondLife ─── */}
+          <StorefrontPage key={homeKey} onGoToCart={handleCartClick} onAddToCart={handleAddToCart} />
+        </AmazonShell>
       ) : (
-        <StorefrontPage 
-          key={homeKey} 
-          onGoToCart={handleCartClick} 
-          onAddToCart={handleAddToCart} 
+        <CustomerStorefrontPage 
+          cartCount={cart.length}
+          onCartClick={handleCartClick}
+          onAddToCart={handleAddToCart}
           onNavigateToSecondLife={() => navigateTo('/second-life')}
+          persona={persona}
+          setPersona={handlePersonaChange}
+          onOrdersClick={handleOrdersClick}
         />
       )}
 
@@ -120,7 +111,7 @@ function App() {
                   onClick={() => setActiveFlow(null)} 
                   className="text-[#007185] hover:text-[#C7511F] hover:underline font-medium cursor-pointer"
                 >
-                  ← Back to {currentPath === '/second-life' ? 'SecondLife Hub' : 'Storefront'}
+                  ← Back to {currentPath === '/second-life' ? 'SecondLife Platform' : 'Storefront'}
                 </button>
                 <span className="text-[#D5D9D9]">|</span>
                 <span className="text-[#565959]">
@@ -143,7 +134,7 @@ function App() {
           {activeFlow === 'buyer' && <ViewC cart={cart} onRemoveFromCart={handleRemoveFromCart} />}
         </div>
       )}
-    </AmazonShell>
+    </>
   );
 }
 
