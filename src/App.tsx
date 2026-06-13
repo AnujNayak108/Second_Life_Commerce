@@ -4,6 +4,7 @@ import { ViewA } from './components/ViewA';
 import { ViewB } from './components/ViewB';
 import { ViewC } from './components/ViewC';
 import { StorefrontPage, type Product } from './components/StorefrontPage';
+import { AdminDashboard } from './components/admin/AdminDashboard';
 import { X } from 'lucide-react';
 
 type ActiveFlow = null | 'seller' | 'returner' | 'buyer';
@@ -51,6 +52,10 @@ function App() {
   const handleRemoveFromCart = (productId: string) => {
     setCart(prev => prev.filter(item => item.id !== productId));
   };
+
+  if (persona === 'admin') {
+    return <AdminDashboard onExit={() => handlePersonaChange('storefront')} />;
+  }
 
   return (
     <AmazonShell 

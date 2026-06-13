@@ -2,13 +2,14 @@ import { type ReactNode } from 'react';
 import { Search, ShoppingCart, MapPin, ChevronDown, Coins, Leaf } from 'lucide-react';
 
 // ─── Persona type ─────────────────────────────────────────────────────────────
-export type Persona = 'storefront' | 'rahul' | 'priya' | 'amit';
+export type Persona = 'storefront' | 'rahul' | 'priya' | 'amit' | 'admin';
 
 const PERSONA_META: Record<Persona, { name: string; greeting: string; label: string }> = {
   storefront: { name: 'Amit', greeting: 'Hello, Amit', label: '🏪 Storefront' },
   rahul: { name: 'Rahul', greeting: 'Hello, Rahul', label: '📦 Rahul (Seller)' },
   priya: { name: 'Priya', greeting: 'Hello, Priya', label: '↩️ Priya (Returner)' },
   amit: { name: 'Amit', greeting: 'Hello, Amit', label: '🛒 Amit (Buyer)' },
+  admin: { name: 'Ops Admin', greeting: 'Hello, Ops Admin', label: '🛠️ Operations Admin' },
 };
 
 const SUB_NAV = [
@@ -104,6 +105,7 @@ export function AmazonShell({ persona, setPersona, onHomeClick, onOrdersClick, o
                   <option value="rahul" className="text-[#0F1111]">📦 Rahul (Seller)</option>
                   <option value="priya" className="text-[#0F1111]">↩️ Priya (Returner)</option>
                   <option value="amit" className="text-[#0F1111]">🛒 Amit (Buyer)</option>
+                  <option value="admin" className="text-[#0F1111]">🛠️ Operations Admin</option>
                 </select>
                 <ChevronDown className="w-3 h-3 text-white pointer-events-none -ml-3" />
               </div>
