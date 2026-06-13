@@ -2,35 +2,56 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
   Amazon EcoBridge - Serverless backend for hyper-local circular economy.
-  DynamoDB + Lambda (Python 3.12) + API Gateway + Rekognition.
+  DynamoDB + Lambda (Node.js 20.x) + API Gateway.
 
 Globals:
   Function:
-    Runtime: python3.12
-    MemorySize: 256
+    Runtime: nodejs20.x
+    MemorySize: 512
     Timeout: 30
 
 Resources:
   # -------------------------------------------------------
   # DynamoDB Table: EcoBridge_Listings
-  # Partition key: zip_code (String) - enables O(1) locality lookups
-  # Sort key: item_id (String) - unique UUID per item
+  # Partition key: PK (String)
+  # Sort key: SK (String)
   # -------------------------------------------------------
   EcoBridgeListingsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: EcoBridge_Listings
+      TableName: SecondLifeCommerceDB
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: zip_code
+        - AttributeName: PK
           AttributeType: S
-        - AttributeName: item_id
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: facilityId
+          AttributeType: S
+        - AttributeName: status
           AttributeType: S
       KeySchema:
-        - AttributeName: zip_code
+        - AttributeName: PK
           KeyType: HASH
-        - AttributeName: item_id
+        - AttributeName: SK
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: SK
+              KeyType: HASH
+            - AttributeName: PK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: FacilityStatusIndex
+          KeySchema:
+            - AttributeName: facilityId
+              KeyType: HASH
+            - AttributeName: status
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
 
   # -------------------------------------------------------
   # API Gateway REST API
@@ -40,179 +61,47 @@ Resources:
     Properties:
       Name: EcoBridgeApi
       StageName: prod
-      DefinitionBody:
-        swagger: '2.0'
-        info:
-          title: EcoBridge API
-          version: '1.0'
-        paths:
-          /grade:
-            post:
-              x-amazon-apigateway-integration:
-                type: aws_proxy
-                httpMethod: POST
-                uri:
-                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${EcoBridgeAIGrader.Arn}/invocations
-              responses: {}
-            options:
-              consumes:
-                - application/json
-              produces:
-                - application/json
-              responses:
-                '200':
-                  description: CORS preflight response
-                  headers:
-                    Access-Control-Allow-Origin:
-                      type: string
-                    Access-Control-Allow-Headers:
-                      type: string
-                    Access-Control-Allow-Methods:
-                      type: string
-              x-amazon-apigateway-integration:
-                type: mock
-                requestTemplates:
-                  application/json: '{"statusCode": 200}'
-                responses:
-                  default:
-                    statusCode: '200'
-                    responseParameters:
-                      method.response.header.Access-Control-Allow-Origin: "'*'"
-                      method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
-                      method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
-                    responseTemplates:
-                      application/json: '{}'
-          /intercept:
-            post:
-              x-amazon-apigateway-integration:
-                type: aws_proxy
-                httpMethod: POST
-                uri:
-                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${EcoBridgeCheckoutIntercept.Arn}/invocations
-              responses: {}
-            options:
-              consumes:
-                - application/json
-              produces:
-                - application/json
-              responses:
-                '200':
-                  description: CORS preflight response
-                  headers:
-                    Access-Control-Allow-Origin:
-                      type: string
-                    Access-Control-Allow-Headers:
-                      type: string
-                    Access-Control-Allow-Methods:
-                      type: string
-              x-amazon-apigateway-integration:
-                type: mock
-                requestTemplates:
-                  application/json: '{"statusCode": 200}'
-                responses:
-                  default:
-                    statusCode: '200'
-                    responseParameters:
-                      method.response.header.Access-Control-Allow-Origin: "'*'"
-                      method.response.header.Access-Control-Allow-Headers: "'Content-Type'"
-                      method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
-                    responseTemplates:
-                      application/json: '{}'
 
   # -------------------------------------------------------
-  # Lambda Function: EcoBridge_AI_Grader
-  # Handles POST /grade - AI condition grading pipeline
+  # Lambda Function: Express API Handler
+  # Handles all /api/* routes via serverless-http
   # -------------------------------------------------------
-  EcoBridgeAIGrader:
+  ExpressApiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: EcoBridge_AI_Grader
-      Handler: grader/handler.lambda_handler
-      CodeUri: ../lambdas/
+      FunctionName: SecondLifeCommerceAPI
+      Handler: lambda.handler
+      CodeUri: ../
       Environment:
         Variables:
           TABLE_NAME: !Ref EcoBridgeListingsTable
       Policies:
         - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:*
+              Resource: 
+                - !GetAtt EcoBridgeListingsTable.Arn
+                - !Sub "${EcoBridgeListingsTable.Arn}/index/*"
             - Effect: Allow
               Action:
                 - rekognition:DetectLabels
               Resource: '*'
-            - Effect: Allow
-              Action:
-                - dynamodb:PutItem
-              Resource: !GetAtt EcoBridgeListingsTable.Arn
       Events:
-        GradePost:
+        ProxyApiRoot:
           Type: Api
           Properties:
             RestApiId: !Ref EcoBridgeApi
-            Path: /grade
-            Method: post
-
-  # -------------------------------------------------------
-  # Lambda Function: EcoBridge_Checkout_Intercept
-  # Handles POST /intercept - checkout local matching
-  # -------------------------------------------------------
-  EcoBridgeCheckoutIntercept:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: EcoBridge_Checkout_Intercept
-      Handler: intercept/handler.lambda_handler
-      CodeUri: ../lambdas/
-      Environment:
-        Variables:
-          TABLE_NAME: !Ref EcoBridgeListingsTable
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - dynamodb:Query
-              Resource: !GetAtt EcoBridgeListingsTable.Arn
-      Events:
-        InterceptPost:
+            Path: /
+            Method: ANY
+        ProxyApiGreedy:
           Type: Api
           Properties:
             RestApiId: !Ref EcoBridgeApi
-            Path: /intercept
-            Method: post
-
-  # -------------------------------------------------------
-  # Lambda Permissions for API Gateway invocation
-  # -------------------------------------------------------
-  GraderApiPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref EcoBridgeAIGrader
-      Action: lambda:InvokeFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${EcoBridgeApi}/*/POST/grade
-
-  InterceptApiPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref EcoBridgeCheckoutIntercept
-      Action: lambda:InvokeFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${EcoBridgeApi}/*/POST/intercept
+            Path: /{proxy+}
+            Method: ANY
 
 Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL
-    Value: !Sub https://${EcoBridgeApi}.execute-api.${AWS::Region}.amazonaws.com/prod
-
-  GradeEndpoint:
-    Description: POST /grade endpoint URL
-    Value: !Sub https://${EcoBridgeApi}.execute-api.${AWS::Region}.amazonaws.com/prod/grade
-
-  InterceptEndpoint:
-    Description: POST /intercept endpoint URL
-    Value: !Sub https://${EcoBridgeApi}.execute-api.${AWS::Region}.amazonaws.com/prod/intercept
-
-  TableName:
-    Description: DynamoDB table name
-    Value: !Ref EcoBridgeListingsTable
-
-  TableArn:
-    Description: DynamoDB table ARN
-    Value: !GetAtt EcoBridgeListingsTable.Arn
+    Value: !Sub https://${EcoBridgeApi}.execute-api.${AWS::Region}.amazonaws.com/prod/api

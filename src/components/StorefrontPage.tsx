@@ -307,7 +307,7 @@ export function StorefrontPage({ onGoToCart, onAddToCart }: { onGoToCart?: () =>
                 <span className="font-bold text-[#007600]">+ {cartItem.greenCoins} 🪙 Green Coins earned!</span>
               </div>
               <button 
-                onClick={() => { setCartOpen(false); onGoToCart && onGoToCart(); }} 
+                onClick={() => { setCartOpen(false); onGoToCart?.(); }} 
                 className="w-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] text-[#0F1111] font-medium py-2 rounded-full mb-2">
                 Cart & Checkout
               </button>
@@ -470,7 +470,7 @@ export function StorefrontPage({ onGoToCart, onAddToCart }: { onGoToCart?: () =>
             <span className="font-bold text-[#007600]">+ {cartItem.greenCoins} 🪙 Green Coins earned!</span>
           </div>
           <button 
-            onClick={() => { setCartOpen(false); onGoToCart && onGoToCart(); }} 
+            onClick={() => { setCartOpen(false); onGoToCart?.(); }} 
             className="w-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] text-[#0F1111] font-medium py-2 rounded-full mb-2">
             Cart & Checkout
           </button>

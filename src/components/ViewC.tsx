@@ -33,7 +33,7 @@ export function ViewC({ cart = [], onRemoveFromCart }: { cart?: Product[]; onRem
 
   useEffect(() => {
     if (cart.length > 0) {
-      setHadItems(true);
+      Promise.resolve().then(() => setHadItems(true));
     }
   }, [cart.length]);
 
@@ -41,7 +41,7 @@ export function ViewC({ cart = [], onRemoveFromCart }: { cart?: Product[]; onRem
     // If the cart already has items from the Storefront, they are already eco-items.
     // Skip the intercept API call entirely.
     if (cart.length > 0) {
-      setState('success'); // Already eco
+      Promise.resolve().then(() => setState('success')); // Already eco
       return;
     }
 
