@@ -16,6 +16,21 @@ function App() {
   const [homeKey, setHomeKey] = useState(0);
   const [cart, setCart] = useState<Product[]>([]);
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
+  const [orders, setOrders] = useState<any[]>([
+    {
+      id: 'mock_shoes',
+      orderId: '402-7291058-3148621',
+      name: 'Pro Running Shoes - Size 9',
+      price: 4000,
+      originalPrice: 4000,
+      datePlaced: 'Yesterday',
+      status: 'Delivered Yesterday',
+      icon: '👟',
+      freeDelivery: true,
+      prime: true,
+      isReturnable: true
+    }
+  ]);
 
   // Sync state with popstate event (e.g. browser back/forward buttons)
   useEffect(() => {
@@ -68,6 +83,34 @@ function App() {
 
   const handleRemoveFromCart = (productId: string) => {
     setCart(prev => prev.filter(item => item.id !== productId));
+  };
+
+  const handlePlaceOrder = (items: Product[]) => {
+    const generateOrderId = () => {
+      const part1 = Math.floor(100 + Math.random() * 900);
+      const part2 = Math.floor(1000000 + Math.random() * 9000000);
+      const part3 = Math.floor(1000000 + Math.random() * 9000000);
+      return `${part1}-${part2}-${part3}`;
+    };
+
+    const newOrders = items.map(item => ({
+      id: item.id || `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      orderId: generateOrderId(),
+      name: item.name,
+      price: item.price,
+      originalPrice: item.originalPrice || item.price,
+      datePlaced: 'Today',
+      status: 'Preparing for Dispatch',
+      icon: item.icon,
+      freeDelivery: item.freeDelivery || false,
+      prime: item.prime || false,
+      isReturnable: true,
+      co2Saved: (item as any).co2Saved,
+      greenCoins: (item as any).greenCoins
+    }));
+
+    setOrders(prev => [...newOrders, ...prev]);
+    setCart([]);
   };
 
   if (persona === 'admin') {
@@ -130,8 +173,16 @@ function App() {
           </div>
           {/* Flow content */}
           {activeFlow === 'seller' && <ViewA />}
-          {activeFlow === 'returner' && <ViewB />}
-          {activeFlow === 'buyer' && <ViewC cart={cart} onRemoveFromCart={handleRemoveFromCart} />}
+          {activeFlow === 'returner' && <ViewB orders={orders} />}
+          {activeFlow === 'buyer' && (
+            <ViewC 
+              cart={cart} 
+              onRemoveFromCart={handleRemoveFromCart}
+              onPlaceOrder={handlePlaceOrder}
+              onViewOrders={() => setActiveFlow('returner')}
+              onClose={() => setActiveFlow(null)}
+            />
+          )}
         </div>
       )}
     </>

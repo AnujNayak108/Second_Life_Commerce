@@ -23,9 +23,22 @@ interface InterceptResult {
 
 const API_URL = import.meta.env.VITE_ECOBRIDGE_API_URL || 'https://4w990xpwkg.execute-api.ap-south-1.amazonaws.com/prod';
 
-export function ViewC({ cart = [], onRemoveFromCart }: { cart?: Product[]; onRemoveFromCart?: (id: string) => void }) {
+export function ViewC({ 
+  cart = [], 
+  onRemoveFromCart,
+  onPlaceOrder,
+  onViewOrders,
+  onClose
+}: { 
+  cart?: Product[]; 
+  onRemoveFromCart?: (id: string) => void;
+  onPlaceOrder?: (items: Product[]) => void;
+  onViewOrders?: () => void;
+  onClose?: () => void;
+}) {
   const [state, setState] = useState<State>('loading');
   const [showModal, setShowModal] = useState(false);
+  const [acceptedEco, setAcceptedEco] = useState(false);
   const [interceptData, setInterceptData] = useState<InterceptResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hadItems, setHadItems] = useState(cart.length > 0);
@@ -41,7 +54,7 @@ export function ViewC({ cart = [], onRemoveFromCart }: { cart?: Product[]; onRem
     // If the cart already has items from the Storefront, they are already eco-items.
     // Skip the intercept API call entirely.
     if (cart.length > 0) {
-      Promise.resolve().then(() => setState('success')); // Already eco
+      Promise.resolve().then(() => setState('checkout')); // Already eco
       return;
     }
 
@@ -69,19 +82,113 @@ export function ViewC({ cart = [], onRemoveFromCart }: { cart?: Product[]; onRem
     return () => { cancelled = true; };
   }, [cart.length]);
 
-  const handleAccept = () => { setShowModal(false); setState('success'); };
+  const handleAccept = () => { 
+    if (onPlaceOrder) {
+      onPlaceOrder([{
+        id: 'mock_eco_shoes',
+        name: matchedItem?.product_name || 'Pro Running Shoes - Size 9',
+        price: matchedItem ? matchedItem.price : 2500,
+        originalPrice: 4000,
+        icon: '👟',
+        freeDelivery: true,
+        prime: true,
+        co2Saved: matchedItem ? matchedItem.carbon_saved_estimate : '8.2kg',
+        greenCoins: 50
+      } as any]);
+    }
+    setAcceptedEco(true);
+    setShowModal(false); 
+    setState('success'); 
+  };
+
+  const handleCheckout = () => {
+    if (cart.length > 0) {
+      if (onPlaceOrder) {
+        onPlaceOrder(cart);
+      }
+      setState('success');
+    } else {
+      if (onPlaceOrder) {
+        onPlaceOrder([{
+          id: 'mock_shoes',
+          name: matchedItem?.product_name || 'Pro Running Shoes - Size 9',
+          price: isEco ? (matchedItem ? matchedItem.price : 2500) : 4000,
+          originalPrice: 4000,
+          icon: '👟',
+          freeDelivery: true,
+          prime: true,
+          co2Saved: isEco ? (matchedItem ? matchedItem.carbon_saved_estimate : '8.2kg') : '0kg',
+          greenCoins: isEco ? 50 : 25
+        } as any]);
+      }
+      setState('success');
+    }
+  };
   
   // Calculate dynamic totals if cart has items
   const isDynamicCart = cart.length > 0;
   const dynamicSubtotal = cart.reduce((sum, item) => sum + item.price, 0);
   const dynamicCoins = cart.reduce((sum, item) => sum + item.greenCoins, 0);
 
-  const isEco = isDynamicCart || state === 'success';
+  const isEco = isDynamicCart || acceptedEco;
   const matchedItem = interceptData?.item;
   const ecoPrice = matchedItem ? `₹${matchedItem.price.toLocaleString('en-IN')}.00` : '₹2,500.00';
   const discountPercent = interceptData?.eco_discount_percent ?? 37;
 
   const isEmpty = (hadItems && cart.length === 0) || mockDeleted;
+
+  // ─── SUCCESS (Order Placed) ──────────────────────────────────────────────────
+  if (state === 'success') {
+    return (
+      <div className="pb-10">
+        <div className="max-w-xl mx-auto p-6 mt-8 bg-white border border-[#D5D9D9] rounded shadow-sm text-center space-y-5">
+          <div className="w-16 h-16 bg-[#E7F4E4] border border-[#C3E6C0] text-[#007600] rounded-full flex items-center justify-center mx-auto shadow-sm">
+            <CheckCircle className="w-10 h-10" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Order Placed Successfully!</h1>
+            <p className="text-sm text-[#565959] mt-1.5">
+              Thank you for your purchase. Your items have been added to your orders ledger.
+            </p>
+          </div>
+
+          <div className="bg-[#FFFBF0] border border-[#FFD814]/40 rounded p-4 text-left space-y-1.5 text-xs text-gray-800">
+            <div className="flex justify-between font-bold">
+              <span>Status:</span>
+              <span className="text-[#007600]">Preparing for Dispatch</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Estimated Delivery:</span>
+              <span>Standard Shipping (3-5 days)</span>
+            </div>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row gap-3">
+            <button 
+              onClick={() => {
+                if (onViewOrders) {
+                  onViewOrders();
+                }
+              }}
+              className="flex-1 bg-[#FFD814] hover:bg-[#F7CA00] text-gray-900 font-bold py-2 rounded-full text-xs border border-[#FCD200] transition-colors cursor-pointer"
+            >
+              Go to Your Orders
+            </button>
+            <button 
+              onClick={() => {
+                if (onClose) {
+                  onClose();
+                }
+              }}
+              className="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-2 rounded-full text-xs transition-colors cursor-pointer"
+            >
+              Continue Shopping
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ─── LOADING ────────────────────────────────────────────────────────────────
   if (state === 'loading') {
@@ -230,7 +337,10 @@ export function ViewC({ cart = [], onRemoveFromCart }: { cart?: Product[]; onRem
               <h3 className="text-base text-[#0F1111] mb-3">
                 Subtotal ({isDynamicCart ? cart.length : 1} item{cart.length !== 1 && isDynamicCart ? 's' : ''}): <span className="font-bold">{isDynamicCart ? `₹${dynamicSubtotal.toLocaleString('en-IN')}.00` : (isEco ? ecoPrice : '₹4,000.00')}</span>
               </h3>
-              <button className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] font-medium py-2 rounded-full text-sm border border-[#FCD200] transition-colors">
+              <button 
+                onClick={handleCheckout}
+                className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] font-medium py-2 rounded-full text-sm border border-[#FCD200] transition-colors"
+              >
                 Proceed to Buy
               </button>
             </div>
@@ -250,7 +360,7 @@ export function ViewC({ cart = [], onRemoveFromCart }: { cart?: Product[]; onRem
       </div>
 
       {/* ─── INTERCEPT MODAL ─── */}
-      {showModal && state !== 'success' && interceptData?.match_found && matchedItem && (
+      {showModal && interceptData?.match_found && matchedItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div className="bg-white border border-[#D5D9D9] rounded-lg shadow-2xl max-w-lg w-full relative z-10 overflow-hidden">

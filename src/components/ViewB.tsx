@@ -14,7 +14,21 @@ interface GradeResult {
 
 const API_URL = import.meta.env.VITE_ECOBRIDGE_API_URL;
 
-export function ViewB() {
+export interface OrderItem {
+  id: string;
+  orderId: string;
+  name: string;
+  price: number;
+  originalPrice: number;
+  icon?: string;
+  datePlaced: string;
+  status: string;
+  isReturnable: boolean;
+  co2Saved?: string;
+  greenCoins?: number;
+}
+
+export function ViewB({ orders = [] }: { orders?: OrderItem[] }) {
   const [state, setState] = useState<State>('orders');
   const [gradeResult, setGradeResult] = useState<GradeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,32 +107,35 @@ export function ViewB() {
 
       <h1 className="text-xl font-medium text-[#0F1111] mb-4">Your Orders</h1>
       <div className="space-y-3">
-        {/* Running Shoes order */}
-        <div className="bg-white border border-[#D5D9D9] rounded overflow-hidden">
-          <div className="bg-[#F0F2F2] border-b border-[#D5D9D9] px-4 py-2 flex items-center justify-between text-xs text-[#565959]">
-            <div className="flex gap-6">
-              <div><span className="uppercase text-[10px] block font-medium">Order placed</span>Yesterday</div>
-              <div><span className="uppercase text-[10px] block font-medium">Total</span>₹4,000.00</div>
+        {orders.map((order) => (
+          <div key={order.id} className="bg-white border border-[#D5D9D9] rounded overflow-hidden">
+            <div className="bg-[#F0F2F2] border-b border-[#D5D9D9] px-4 py-2 flex items-center justify-between text-xs text-[#565959]">
+              <div className="flex gap-6">
+                <div><span className="uppercase text-[10px] block font-medium">Order placed</span>{order.datePlaced}</div>
+                <div><span className="uppercase text-[10px] block font-medium">Total</span>₹{order.price.toLocaleString('en-IN')}.00</div>
+              </div>
+              <div className="text-[10px]">ORDER# {order.orderId}</div>
             </div>
-            <div className="text-[10px]">ORDER# 402-7291058-3148621</div>
-          </div>
-          <div className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-            <div className="flex items-center">
-              <div className="w-16 h-16 bg-[#F7F8F8] rounded flex items-center justify-center mr-4 border border-[#D5D9D9]"><Package className="text-[#D5D9D9]" /></div>
-              <div>
-                <a href="#" className="text-[#007185] hover:text-[#C7511F] hover:underline font-medium text-sm">Pro Running Shoes - Size 9</a>
-                <p className="text-xs text-[#007600] font-medium mt-0.5">Delivered Yesterday</p>
+            <div className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+              <div className="flex items-center">
+                <div className="w-16 h-16 bg-[#F7F8F8] rounded flex items-center justify-center mr-4 border border-[#D5D9D9] text-3xl">
+                  {order.icon ? order.icon : <Package className="text-[#D5D9D9] w-8 h-8" />}
+                </div>
+                <div>
+                  <a href="#" className="text-[#007185] hover:text-[#C7511F] hover:underline font-medium text-sm">{order.name}</a>
+                  <p className="text-xs text-[#007600] font-medium mt-0.5">{order.status}</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 w-full md:w-auto">
+                <button className="bg-[#F0F2F2] hover:bg-[#E3E6E6] border border-[#D5D9D9] rounded-full px-4 py-1.5 text-sm font-medium text-[#0F1111] transition-colors w-full md:w-auto">Track package</button>
+                <button onClick={handleReturnClick} disabled={state === 'toast'}
+                  className="bg-[#F0F2F2] hover:bg-[#E3E6E6] border border-[#D5D9D9] rounded-full px-4 py-1.5 text-sm font-medium text-[#0F1111] transition-colors w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                  Return or replace items
+                </button>
               </div>
             </div>
-            <div className="flex flex-col gap-2 w-full md:w-auto">
-              <button className="bg-[#F0F2F2] hover:bg-[#E3E6E6] border border-[#D5D9D9] rounded-full px-4 py-1.5 text-sm font-medium text-[#0F1111] transition-colors w-full md:w-auto">Track package</button>
-              <button onClick={handleReturnClick} disabled={state === 'toast'}
-                className="bg-[#F0F2F2] hover:bg-[#E3E6E6] border border-[#D5D9D9] rounded-full px-4 py-1.5 text-sm font-medium text-[#0F1111] transition-colors w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
-                Return or replace items
-              </button>
-            </div>
           </div>
-        </div>
+        ))}
       </div>
 
       {/* ─── INTERCEPT MODAL ─── */}
