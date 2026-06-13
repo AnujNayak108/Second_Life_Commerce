@@ -13,8 +13,7 @@ const PERSONA_META: Record<Persona, { name: string; greeting: string; label: str
 };
 
 const SUB_NAV = [
-  '🌿 Second Life', '♻️ Amazon Renewed', '👤 P2P Marketplace', "Today's Deals",
-  'Electronics', 'Fashion', 'Home & Kitchen', 'Books'
+  "Today's Deals", 'Electronics', 'Fashion', 'Home', 'Books', 'Amazon Renewed', 'SecondLife Marketplace'
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -24,12 +23,24 @@ interface AmazonShellProps {
   onHomeClick?: () => void;
   onOrdersClick?: () => void;
   onCartClick?: () => void;
+  onSecondLifeClick?: () => void;
   cartCount?: number;
+  ecoCredits?: number;
   children: ReactNode;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export function AmazonShell({ persona, setPersona, onHomeClick, onOrdersClick, onCartClick, cartCount = 0, children }: AmazonShellProps) {
+export function AmazonShell({ 
+  persona, 
+  setPersona, 
+  onHomeClick, 
+  onOrdersClick, 
+  onCartClick, 
+  onSecondLifeClick, 
+  cartCount = 0, 
+  ecoCredits = 5400, 
+  children 
+}: AmazonShellProps) {
   const meta = PERSONA_META[persona];
 
   return (
@@ -41,16 +52,16 @@ export function AmazonShell({ persona, setPersona, onHomeClick, onOrdersClick, o
 
           {/* Logo */}
           <div 
-            className="flex flex-col items-start mr-1 shrink-0 border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer"
+            className="flex flex-col items-start mr-2 shrink-0 border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer"
             onClick={onHomeClick}
           >
             <div className="flex items-baseline gap-0.5">
-              <span className="text-white font-bold text-xl leading-tight tracking-tight">amazon</span>
-              <span className="text-[#FF9900] text-[9px] font-semibold">.in</span>
+              <span className="text-white font-bold text-xl leading-tight tracking-tight">SecondLife</span>
+              <span className="text-[#FF9900] text-xs font-black leading-none">AI</span>
             </div>
             <div className="flex items-center gap-1 mt-0.5">
               <Leaf className="w-2.5 h-2.5 text-[#FF9900]" />
-              <span className="text-[#FF9900] text-[8px] font-bold tracking-widest uppercase">Second Life</span>
+              <span className="text-gray-400 text-[8px] font-bold tracking-widest uppercase">An Amazon Platform</span>
             </div>
           </div>
 
@@ -82,12 +93,15 @@ export function AmazonShell({ persona, setPersona, onHomeClick, onOrdersClick, o
           {/* Right nav */}
           <div className="flex items-center gap-0.5 shrink-0 ml-1">
 
-            {/* Green Coins */}
-            <div className="hidden sm:flex flex-col border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer">
-              <span className="text-[#CCCCCC] text-[10px] leading-tight">Green</span>
+            {/* Eco Credits badge */}
+            <div 
+              onClick={onSecondLifeClick}
+              className="hidden sm:flex flex-col border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer"
+            >
+              <span className="text-[#CCCCCC] text-[10px] leading-tight">Eco Credits</span>
               <div className="flex items-center gap-1">
                 <Coins className="w-3.5 h-3.5 text-[#FF9900]" />
-                <span className="text-white text-xs font-bold">240 🪙</span>
+                <span className="text-white text-xs font-bold">{ecoCredits.toLocaleString()} 🪙</span>
               </div>
             </div>
 
@@ -136,7 +150,10 @@ export function AmazonShell({ persona, setPersona, onHomeClick, onOrdersClick, o
 
         {/* ═══ SUB NAV — #232F3E ═══════════════════════════════════════════ */}
         <nav className="bg-[#232F3E] flex items-center px-3 py-1 gap-0.5 overflow-x-auto">
-          <button className="flex items-center gap-1.5 text-white text-sm font-bold hover:text-white border border-transparent hover:border-white rounded px-2 py-1.5 whitespace-nowrap shrink-0">
+          <button 
+            onClick={onHomeClick}
+            className="flex items-center gap-1.5 text-white text-sm font-bold hover:text-white border border-transparent hover:border-white rounded px-2 py-1.5 whitespace-nowrap shrink-0 cursor-pointer"
+          >
             <span className="flex flex-col gap-[3px] w-4">
               <span className="w-full h-0.5 bg-white rounded" />
               <span className="w-full h-0.5 bg-white rounded" />
@@ -144,44 +161,84 @@ export function AmazonShell({ persona, setPersona, onHomeClick, onOrdersClick, o
             </span>
             All
           </button>
-          {SUB_NAV.map((item) => (
-            <button
-              key={item}
-              className="text-white text-sm hover:text-white border border-transparent hover:border-white rounded px-2 py-1.5 whitespace-nowrap shrink-0"
-            >
-              {item}
-            </button>
-          ))}
+          {SUB_NAV.map((item) => {
+            const isMarketplace = item === 'SecondLife Marketplace';
+            return (
+              <button
+                key={item}
+                onClick={isMarketplace ? onSecondLifeClick : onHomeClick}
+                className={`text-sm hover:text-white border border-transparent hover:border-white rounded px-2 py-1.5 whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                  isMarketplace ? 'text-emerald-400 font-bold' : 'text-white'
+                }`}
+              >
+                {item}
+                {isMarketplace && (
+                  <span className="bg-[#007600] text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Live
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
       </header>
-
+ 
       {/* ═══ PAGE CONTENT ══════════════════════════════════════════════════ */}
       <main className="flex-1">
         {children}
       </main>
-
+ 
       {/* ═══ FOOTER ════════════════════════════════════════════════════════ */}
       <footer>
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="w-full bg-[#37475A] hover:bg-[#485769] text-white text-sm py-3 transition-colors font-medium"
+          className="w-full bg-[#37475A] hover:bg-[#485769] text-white text-sm py-3 transition-colors font-medium cursor-pointer"
         >
           Back to top
         </button>
         <div className="bg-[#232F3E] text-white py-10 px-6">
-          <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8">
             {[
-              { title: 'Get to Know Us', links: ['About SecondLife', 'Careers', 'Press Releases', 'Amazon Science'] },
-              { title: 'Connect with Us', links: ['Facebook', 'Twitter', 'Instagram'] },
-              { title: 'Make Money with Us', links: ['Sell on Second Life', 'List P2P Items', 'Amazon Renewed Program', 'Become a Seller'] },
-              { title: 'Let Us Help You', links: ['Your Account', 'Your Orders', 'Green Coins Balance', 'Return an Item', 'Help'] },
+              { 
+                title: 'Shop', 
+                links: ["Today's Deals", 'Electronics', 'Fashion', 'Home', 'Books', 'Amazon Renewed'],
+                onClick: onHomeClick 
+              },
+              { 
+                title: 'Returns', 
+                links: ['Returns Center', 'Replacement Guide', 'Return Policy', 'AI Inspection Info'],
+                onClick: onOrdersClick 
+              },
+              { 
+                title: 'SecondLife Marketplace', 
+                links: ['Browse P2P Listings', 'List Used Item', 'Condition Grading Rig', 'Locker Trade-In'],
+                onClick: onSecondLifeClick 
+              },
+              { 
+                title: 'Eco Credits', 
+                links: ['Green Coins Balance', 'How Credits Work', 'Redeem Discounts', 'Eco Rewards Ledger'],
+                onClick: onSecondLifeClick 
+              },
+              { 
+                title: 'About', 
+                links: ['About SecondLife AI', 'Careers', 'Our Mission', 'Carbon Savings Report'] 
+              },
+              { 
+                title: 'Contact', 
+                links: ['Customer Support', 'Eco Advisor Chat', 'Corporate Contact', 'Seller Central'] 
+              },
             ].map((col) => (
               <div key={col.title}>
-                <h4 className="font-bold text-sm mb-3">{col.title}</h4>
+                <h4 className="font-bold text-sm mb-3 text-white">{col.title}</h4>
                 <ul className="space-y-1.5">
                   {col.links.map((link) => (
                     <li key={link}>
-                      <a href="#" className="text-[#DDDDDD] hover:text-white text-xs transition-colors">{link}</a>
+                      <button 
+                        onClick={col.onClick || undefined}
+                        className="text-[#DDDDDD] hover:text-white text-xs transition-colors hover:underline text-left cursor-pointer"
+                      >
+                        {link}
+                      </button>
                     </li>
                   ))}
                 </ul>

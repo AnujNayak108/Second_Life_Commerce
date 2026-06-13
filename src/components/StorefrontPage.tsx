@@ -1,17 +1,7 @@
-import { useState } from 'react';
-import {
-  ShoppingCart,
-  Leaf,
-  Star,
-  ArrowRight,
-  Recycle,
-  Users,
-  Coins,
-  CheckCircle,
-  Truck,
-  RotateCcw,
-  ThumbsUp,
-  Package,
+import { useState, useEffect } from 'react';
+import { 
+  ShoppingCart, Leaf, Star, Recycle, Coins, CheckCircle, 
+  ArrowRight, ShieldCheck, HeartPulse, Sparkles, Flame 
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -34,30 +24,39 @@ export interface Product {
   prime: boolean;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+interface StorefrontPageProps {
+  onGoToCart?: () => void;
+  onAddToCart?: (product: Product) => void;
+  onNavigateToSecondLife?: () => void;
+}
 
-const RENEWED_PRODUCTS: Product[] = [
-  { id: 'r1', name: 'Apple iPhone 14 Pro 256GB Space Black – Amazon Renewed', price: 54999, originalPrice: 89999, grade: 'A', rating: 4.7, reviews: 1284, type: 'renewed', greenCoins: 250, co2Saved: '18.4 kg', icon: '📱', freeDelivery: true, prime: true },
-  { id: 'r2', name: 'Sony WH-1000XM5 Wireless Noise Cancelling Headphones – Renewed', price: 16999, originalPrice: 29990, grade: 'A', rating: 4.8, reviews: 3421, type: 'renewed', greenCoins: 150, co2Saved: '5.2 kg', icon: '🎧', freeDelivery: true, prime: true },
-  { id: 'r3', name: 'Dell XPS 15 9530 Laptop Intel i7 16GB 512GB SSD – Grade B', price: 74999, originalPrice: 125000, grade: 'B', rating: 4.5, reviews: 876, type: 'renewed', greenCoins: 400, co2Saved: '31.7 kg', icon: '💻', freeDelivery: true, prime: true },
-  { id: 'r4', name: 'Samsung 55" QLED 4K Smart TV QN90B – Certified Renewed', price: 44999, originalPrice: 79990, grade: 'A', rating: 4.6, reviews: 543, type: 'renewed', greenCoins: 320, co2Saved: '42.1 kg', icon: '📺', freeDelivery: true, prime: false },
+// ─── 12 Realistic Products Mock Data ──────────────────────────────────────────
+
+const HOMEPAGE_PRODUCTS: Product[] = [
+  { id: 'h1', name: 'Sony WH-1000XM5 Wireless Noise Cancelling Headphones (Renewed)', price: 21999, originalPrice: 29999, grade: 'A', rating: 4.8, reviews: 3421, type: 'renewed', greenCoins: 150, co2Saved: '5.2 kg', icon: '🎧', freeDelivery: true, prime: true },
+  { id: 'h2', name: 'Apple Watch Series 9 GPS + Cellular 45mm Aluminum (Renewed)', price: 34999, originalPrice: 45900, grade: 'A', rating: 4.7, reviews: 1284, type: 'renewed', greenCoins: 250, co2Saved: '18.4 kg', icon: '⌚', freeDelivery: true, prime: true },
+  { id: 'h3', name: 'Samsung Odyssey G5 27" Curved QHD Gaming Monitor', price: 18500, originalPrice: 28000, grade: 'B', rating: 4.6, reviews: 543, type: 'renewed', greenCoins: 320, co2Saved: '42.1 kg', icon: '🖥️', freeDelivery: true, prime: false },
+  { id: 'h4', name: 'Logitech MX Master 3S Wireless Performance Mouse', price: 5800, originalPrice: 9499, grade: 'A', rating: 4.5, reviews: 876, type: 'renewed', greenCoins: 80, co2Saved: '1.2 kg', icon: '🖱️', freeDelivery: true, prime: true },
+  { id: 'h5', name: 'Apple iPad Air 10.9-inch M1 Chip 64GB Space Grey (Renewed)', price: 39999, originalPrice: 59900, grade: 'A', rating: 4.8, reviews: 921, type: 'renewed', greenCoins: 400, co2Saved: '31.7 kg', icon: '📱', freeDelivery: true, prime: true },
+  { id: 'h6', name: 'Amazon Kindle Paperwhite 16GB 6.8" display with adjustable warm light', price: 11999, originalPrice: 14999, grade: 'A', rating: 4.9, reviews: 2314, type: 'renewed', greenCoins: 50, co2Saved: '0.6 kg', icon: '📚', freeDelivery: true, prime: true },
+  { id: 'h7', name: 'Sony Alpha 7 IV Full-frame Mirrorless Interchangeable Lens Camera', price: 189999, originalPrice: 242990, grade: 'A', rating: 4.8, reviews: 342, type: 'renewed', greenCoins: 1200, co2Saved: '65.2 kg', icon: '📷', freeDelivery: true, prime: true },
+  { id: 'h8', name: 'Bose QuietComfort Ultra Wireless Noise Cancelling Earbuds', price: 18999, originalPrice: 25900, grade: 'B', rating: 4.6, reviews: 1104, type: 'renewed', greenCoins: 180, co2Saved: '3.1 kg', icon: '🎵', freeDelivery: true, prime: true },
+  { id: 'h9', name: 'GoPro HERO12 Black Waterproof Action Camera with HDR Video', price: 32999, originalPrice: 45000, grade: 'A', rating: 4.5, reviews: 438, type: 'renewed', greenCoins: 280, co2Saved: '4.8 kg', icon: '📹', freeDelivery: true, prime: false },
+  { id: 'h10', name: 'Apple AirPods Pro (2nd Generation) with MagSafe USB-C (Renewed)', price: 14999, originalPrice: 24900, grade: 'A', rating: 4.7, reviews: 4518, type: 'renewed', greenCoins: 120, co2Saved: '2.5 kg', icon: '🔈', freeDelivery: true, prime: true },
+  { id: 'h11', name: 'Dell XPS 13 Plus 9320 Laptop Intel Core i7 16GB 512GB SSD', price: 114999, originalPrice: 159990, grade: 'B', rating: 4.4, reviews: 192, type: 'renewed', greenCoins: 650, co2Saved: '54.2 kg', icon: '💻', freeDelivery: true, prime: true },
+  { id: 'h12', name: 'Philips Digital Air Fryer HD9252 4.1L 1400W Multi-Cooker', price: 4200, originalPrice: 9995, grade: 'C', rating: 4.6, reviews: 2104, type: 'renewed', greenCoins: 60, co2Saved: '3.6 kg', icon: '🍳', freeDelivery: true, prime: true }
 ];
 
-const P2P_PRODUCTS: Product[] = [
-  { id: 'p1', name: 'Nike Air Max 270 Running Shoes – Size 9 – Lightly Used', price: 3200, originalPrice: 7995, grade: 'B', rating: 4.3, reviews: 12, type: 'p2p', seller: 'Priya M.', aiScore: 87, greenCoins: 50, co2Saved: '2.1 kg', icon: '👟', freeDelivery: false, prime: false },
-  { id: 'p2', name: 'Atomic Habits by James Clear – Paperback – Read Once', price: 180, originalPrice: 599, grade: 'A', rating: 4.9, reviews: 7, type: 'p2p', seller: 'Rahul K.', aiScore: 95, greenCoins: 20, co2Saved: '0.3 kg', icon: '📚', freeDelivery: false, prime: false },
-  { id: 'p3', name: 'Fossil Gen 6 Smartwatch 44mm – Barely Used – With Box', price: 8500, originalPrice: 22995, grade: 'B', rating: 4.4, reviews: 5, type: 'p2p', seller: 'Ananya S.', aiScore: 82, greenCoins: 75, co2Saved: '4.8 kg', icon: '⌚', freeDelivery: true, prime: false },
-  { id: 'p4', name: 'Philips Digital Air Fryer HD9252 – 1400W – 4.1L – Used', price: 4200, originalPrice: 9995, grade: 'A', rating: 4.6, reviews: 9, type: 'p2p', seller: 'Vikram D.', aiScore: 91, greenCoins: 60, co2Saved: '3.6 kg', icon: '🍳', freeDelivery: true, prime: false },
+// ─── Featured Refurbished Deals Data ──────────────────────────────────────────
+
+const REFURBISHED_DEALS = [
+  { id: 'ref1', name: 'Sony WH-1000XM4 Noise Cancelling Headphones', originalPrice: 24990, refurbPrice: 13999, condition: 'Certified Refurbished', badgeColor: 'bg-emerald-500', savings: 44, icon: '🎧' },
+  { id: 'ref2', name: 'Apple Watch Series 7 GPS 41mm Smartwatch', originalPrice: 41900, refurbPrice: 18500, condition: 'Excellent', badgeColor: 'bg-cyan-500', savings: 55, icon: '⌚' },
+  { id: 'ref3', name: 'Logitech G915 TKL Wireless Mechanical Keyboard', originalPrice: 22995, refurbPrice: 12800, condition: 'Good', badgeColor: 'bg-amber-500', savings: 44, icon: '⌨️' },
+  { id: 'ref4', name: 'Kindle Paperwhite (10th Gen) 8GB Waterproof', originalPrice: 12999, refurbPrice: 6500, condition: 'Certified Refurbished', badgeColor: 'bg-emerald-500', savings: 50, icon: '📚' }
 ];
 
-const CATEGORIES = [
-  { icon: '📱', label: 'Electronics' }, { icon: '👕', label: 'Fashion' },
-  { icon: '🏠', label: 'Home & Kitchen' }, { icon: '📚', label: 'Books' },
-  { icon: '🧴', label: 'Beauty' }, { icon: '🏋️', label: 'Sports' },
-  { icon: '🚗', label: 'Automotive' }, { icon: '🧸', label: 'Toys' },
-];
-
-// ─── Star Rating ──────────────────────────────────────────────────────────────
+// ─── Star Rating Sub-component ────────────────────────────────────────────────
 
 function StarRating({ rating, reviews }: { rating: number; reviews: number }) {
   return (
@@ -67,416 +66,345 @@ function StarRating({ rating, reviews }: { rating: number; reviews: number }) {
           <Star key={s} className={`w-3.5 h-3.5 ${s <= Math.round(rating) ? 'text-[#FF9900] fill-[#FF9900]' : 'text-gray-300 fill-gray-300'}`} />
         ))}
       </div>
-      <span className="text-[#007185] text-xs">{reviews.toLocaleString()}</span>
-    </div>
-  );
-}
-
-// ─── Product Card ─────────────────────────────────────────────────────────────
-
-function ProductCard({ product, onAdd, onClick }: { product: Product; onAdd: (id: string) => void; onClick: (id: string) => void }) {
-  const [added, setAdded] = useState(false);
-  const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
-
-  const handleAdd = (e: React.MouseEvent) => { e.stopPropagation(); setAdded(true); onAdd(product.id); setTimeout(() => setAdded(false), 2000); };
-
-  return (
-    <div onClick={() => onClick(product.id)} className="bg-white border border-[#D5D9D9] hover:shadow-md transition-shadow flex flex-col h-full relative group cursor-pointer">
-      <div className="absolute top-2 left-2 z-10">
-        <span className="bg-[#CC0C39] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm">-{discount}%</span>
-      </div>
-      <div className="h-44 bg-white flex items-center justify-center p-4 border-b border-gray-100 relative">
-        <span className="text-7xl group-hover:scale-105 transition-transform">{product.icon}</span>
-        {product.prime && (
-          <span className="absolute top-2 right-2 bg-[#00A8E0] text-white text-[9px] font-black px-1.5 py-0.5 rounded-sm italic">prime</span>
-        )}
-      </div>
-      <div className="p-3 flex flex-col flex-1">
-        <a href="#" className="text-[#0F1111] text-sm leading-snug hover:text-[#C7511F] hover:underline line-clamp-2 mb-1 font-medium">{product.name}</a>
-        <StarRating rating={product.rating} reviews={product.reviews} />
-        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-          {product.type === 'renewed' ? (
-            <span className="inline-flex items-center gap-0.5 bg-[#F0F2F2] border border-[#D5D9D9] text-[10px] font-semibold px-1.5 py-0.5 rounded-sm">
-              <Recycle className="w-2.5 h-2.5 text-[#007600]" />Amazon Renewed
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-0.5 bg-[#F0F2F2] border border-[#D5D9D9] text-[10px] font-semibold px-1.5 py-0.5 rounded-sm">
-              <Users className="w-2.5 h-2.5 text-[#007185]" />{product.seller}
-            </span>
-          )}
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border ${product.grade === 'A' ? 'bg-[#E7F4E4] border-[#C3E6C0] text-[#007600]' : product.grade === 'B' ? 'bg-[#EAF4FB] border-[#C5DCF0] text-[#005276]' : 'bg-[#FFF8E7] border-[#F5D68A] text-[#7D5B00]'}`}>
-            Grade {product.grade}
-          </span>
-          {product.aiScore && <span className="text-[10px] text-[#565959]">AI: <span className="font-semibold text-[#0F1111]">{product.aiScore}/100</span></span>}
-        </div>
-        <div className="mt-2.5">
-          <div className="flex items-baseline gap-0.5">
-            <span className="text-xs text-[#565959]">₹</span>
-            <span className="text-2xl font-medium text-[#0F1111]">{product.price.toLocaleString('en-IN')}</span>
-          </div>
-          <div className="text-xs text-[#565959] mt-0.5">M.R.P.: <span className="line-through">₹{product.originalPrice.toLocaleString('en-IN')}</span></div>
-        </div>
-        <div className="mt-2 text-xs">
-          {product.freeDelivery ? <span className="text-[#007600] font-medium">FREE Delivery</span> : <span className="text-[#565959]">+ ₹40 delivery</span>}
-        </div>
-        <div className="mt-2 flex items-center gap-1 bg-[#FFFBF0] border border-[#FFD814]/40 rounded-sm px-2 py-1">
-          <Leaf className="w-3 h-3 text-[#007600]" />
-          <span className="text-[10px] text-[#0F1111]">Earn <span className="font-bold text-[#007600]">{product.greenCoins} 🪙</span> · Save {product.co2Saved} CO₂</span>
-        </div>
-        <button onClick={handleAdd}
-          className={`mt-3 w-full py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 ${added ? 'bg-[#007600] text-white' : 'bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] border border-[#FCD200]'}`}>
-          {added ? <span className="flex items-center justify-center gap-1"><CheckCircle className="w-4 h-4" />Added</span> : <span className="flex items-center justify-center gap-1"><ShoppingCart className="w-4 h-4" />Add to Cart</span>}
-        </button>
-        <button onClick={(e) => e.stopPropagation()} className="mt-1.5 w-full py-1.5 rounded-full text-sm font-medium bg-[#FFA41C] hover:bg-[#FA8900] text-[#0F1111] border border-[#FF8F00]">Buy Now</button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Product Detail Page (PDP) ────────────────────────────────────────────────
-
-function ProductDetailPage({ product, onBack, onAdd }: { product: Product; onBack: () => void; onAdd: (id: string) => void }) {
-  const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
-  
-  return (
-    <div className="max-w-7xl mx-auto px-4 py-4 bg-white min-h-screen">
-      {/* Breadcrumb */}
-      <div className="text-xs text-[#565959] mb-4 flex items-center gap-1">
-        <button onClick={onBack} className="hover:underline text-[#565959]">Storefront</button>
-        <span>›</span>
-        <span className="hover:underline cursor-pointer">Electronics</span>
-        <span>›</span>
-        <span className="font-bold text-[#0F1111]">{product.name.split(' ')[0]}</span>
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-8">
-        {/* Left: Image */}
-        <div className="w-full md:w-[40%] flex flex-col items-center">
-          <div className="w-full aspect-square bg-[#F7F8F8] border border-[#D5D9D9] flex items-center justify-center rounded mb-4">
-            <span className="text-[150px]">{product.icon}</span>
-          </div>
-          <div className="flex gap-2 w-full justify-center">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className={`w-12 h-12 border ${i === 1 ? 'border-[#FF9900] shadow-[0_0_3px_#FF9900]' : 'border-[#D5D9D9]'} rounded flex items-center justify-center bg-[#F7F8F8] cursor-pointer hover:border-[#FF9900]`}>
-                <span className="text-xl">{product.icon}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Middle: Info */}
-        <div className="w-full md:w-[40%]">
-          <h1 className="text-2xl text-[#0F1111] font-medium leading-tight mb-1">{product.name}</h1>
-          <a href="#" className="text-sm text-[#007185] hover:text-[#C7511F] hover:underline mb-2 block">
-            Visit the {product.type === 'renewed' ? 'Amazon Renewed' : product.seller} Store
-          </a>
-          <div className="border-b border-[#D5D9D9] pb-2 mb-2 flex items-center gap-4">
-            <StarRating rating={product.rating} reviews={product.reviews} />
-            <div className="flex items-center gap-1">
-              {product.type === 'renewed' ? (
-                <span className="inline-flex items-center gap-0.5 bg-[#F0F2F2] border border-[#D5D9D9] text-[10px] font-semibold px-1.5 py-0.5 rounded-sm"><Recycle className="w-2.5 h-2.5 text-[#007600]" />Amazon Renewed</span>
-              ) : (
-                <span className="inline-flex items-center gap-0.5 bg-[#F0F2F2] border border-[#D5D9D9] text-[10px] font-semibold px-1.5 py-0.5 rounded-sm"><Users className="w-2.5 h-2.5 text-[#007185]" />P2P Listing</span>
-              )}
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-3xl text-[#CC0C39] font-light">-{discount}%</span>
-              <span className="text-xs text-[#0F1111] align-top mt-1">₹</span>
-              <span className="text-3xl font-medium text-[#0F1111]">{product.price.toLocaleString('en-IN')}</span>
-            </div>
-            <div className="text-xs text-[#565959]">
-              M.R.P.: <span className="line-through">₹{product.originalPrice.toLocaleString('en-IN')}</span>
-            </div>
-            <p className="text-sm text-[#0F1111] mt-1">Inclusive of all taxes</p>
-          </div>
-
-          {/* EcoBridge Impact Box */}
-          <div className="bg-[#E7F4E4]/30 border border-[#C3E6C0] rounded p-3 mb-5">
-            <div className="flex items-center gap-2 mb-2">
-              <Leaf className="w-5 h-5 text-[#007600]" />
-              <span className="font-bold text-[#007600]">EcoBridge Impact</span>
-            </div>
-            <ul className="text-sm text-[#0F1111] space-y-1.5">
-              <li><span className="font-bold">Green Coins:</span> Earn <span className="text-[#007600] font-bold">{product.greenCoins} 🪙</span> on purchase</li>
-              <li><span className="font-bold">Carbon Saved:</span> {product.co2Saved} CO₂ emissions diverted</li>
-              <li><span className="font-bold">Condition:</span> AI-Verified Grade {product.grade} {product.aiScore && `(${product.aiScore}/100)`}</li>
-            </ul>
-          </div>
-
-          <h3 className="font-bold text-base text-[#0F1111] mb-2">About this item</h3>
-          <ul className="list-disc pl-5 text-sm text-[#0F1111] space-y-1">
-            <li>Professionally inspected, tested, and cleaned to work and look like new.</li>
-            <li>Backed by the 90-day Amazon Renewed Guarantee.</li>
-            <li>Battery capacity exceeds 80% capacity relative to its new equivalent.</li>
-            <li>Box and accessories may be generic.</li>
-          </ul>
-        </div>
-
-        {/* Right: Buy Box */}
-        <div className="w-full md:w-[20%]">
-          <div className="border border-[#D5D9D9] rounded-lg p-4">
-            <div className="flex items-baseline gap-0.5 mb-2">
-              <span className="text-sm text-[#0F1111]">₹</span>
-              <span className="text-2xl font-medium text-[#0F1111]">{product.price.toLocaleString('en-IN')}</span>
-            </div>
-            {product.freeDelivery && (
-              <p className="text-sm text-[#007185] mb-2 hover:text-[#C7511F] hover:underline cursor-pointer">
-                <span className="text-[#0F1111]">FREE delivery</span> <b>Tomorrow, June 15</b>. Order within 4 hrs 30 mins.
-              </p>
-            )}
-            
-            <h3 className="text-lg text-[#007600] font-medium mb-3">In stock</h3>
-            
-            <div className="flex flex-col gap-1 text-xs text-[#0F1111] mb-4">
-              <div className="flex justify-between"><span className="text-[#565959]">Ships from</span><span>Amazon</span></div>
-              <div className="flex justify-between"><span className="text-[#565959]">Sold by</span><span className="text-[#007185] hover:underline cursor-pointer">{product.type === 'renewed' ? 'Amazon Renewed' : product.seller}</span></div>
-            </div>
-
-            <div className="mb-4">
-              <select className="w-full border border-[#D5D9D9] rounded p-1.5 text-sm bg-[#F0F2F2] shadow-sm outline-none focus:border-[#007185]">
-                <option>Quantity: 1</option>
-                <option>Quantity: 2</option>
-              </select>
-            </div>
-
-            <button onClick={() => onAdd(product.id)} className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] font-medium py-2 rounded-full text-sm border border-[#FCD200] mb-2 transition-colors">
-              Add to Cart
-            </button>
-            <button className="w-full bg-[#FFA41C] hover:bg-[#FA8900] text-[#0F1111] font-medium py-2 rounded-full text-sm border border-[#FF8F00] transition-colors mb-3">
-              Buy Now
-            </button>
-
-            <div className="flex items-center justify-center gap-2 text-sm text-[#007185] hover:text-[#C7511F] hover:underline cursor-pointer">
-              <CheckCircle className="w-4 h-4 text-[#999]" /> Secure transaction
-            </div>
-          </div>
-        </div>
-      </div>
+      <span className="text-[#007185] text-xs font-semibold">{reviews.toLocaleString()}</span>
     </div>
   );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function StorefrontPage({ onGoToCart, onAddToCart }: { onGoToCart?: () => void; onAddToCart?: (p: Product) => void }) {
-  const [activeTab, setActiveTab] = useState<'all' | 'renewed' | 'p2p'>('all');
-  const [searchQuery] = useState('');
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [cartOpen, setCartOpen] = useState(false);
-  const [cartItem, setCartItem] = useState<Product | null>(null);
+export function StorefrontPage({ onGoToCart, onAddToCart, onNavigateToSecondLife }: StorefrontPageProps) {
+  const [toast, setToast] = useState<string | null>(null);
+  
+  // States for animated counters
+  const [secondLifeCount, setSecondLifeCount] = useState(0);
+  const [co2SavedCount, setCo2SavedCount] = useState(0);
+  const [wasteCount, setWasteCount] = useState(0);
+  const [creditsCount, setCreditsCount] = useState(0);
 
-  const handleAdd = (id: string) => {
-    const p = [...RENEWED_PRODUCTS, ...P2P_PRODUCTS].find((x) => x.id === id);
-    if (p) { 
-      setCartItem(p);
-      setCartOpen(true);
-      if (onAddToCart) onAddToCart(p);
-      // Auto close after 5s
-      setTimeout(() => setCartOpen(false), 5000);
+  // Counter animations on mount
+  useEffect(() => {
+    const duration = 1500; // ms
+    const steps = 40;
+    const intervalTime = duration / steps;
+    
+    let step = 0;
+    const timer = setInterval(() => {
+      step++;
+      setSecondLifeCount(Math.floor((220 / steps) * step));
+      setCo2SavedCount(Math.floor((250 / steps) * step));
+      setWasteCount(Math.floor((120 / steps) * step));
+      setCreditsCount(Math.floor((5400 / steps) * step));
+
+      if (step >= steps) {
+        setSecondLifeCount(220);
+        setCo2SavedCount(250);
+        setWasteCount(120);
+        setCreditsCount(5400);
+        clearInterval(timer);
+      }
+    }, intervalTime);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleAdd = (product: Product) => {
+    if (onAddToCart) {
+      onAddToCart(product);
+      setToast(`"${product.name.slice(0, 30)}…" added to cart · +${product.greenCoins} Green Coins!`);
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
-  const renewed = RENEWED_PRODUCTS.filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  const p2p = P2P_PRODUCTS.filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-
-  // If a product is selected, render the PDP
-  if (selectedProductId) {
-    const p = [...RENEWED_PRODUCTS, ...P2P_PRODUCTS].find((x) => x.id === selectedProductId);
-    if (p) {
-      return (
-        <>
-          <ProductDetailPage product={p} onBack={() => setSelectedProductId(null)} onAdd={handleAdd} />
-          {/* Cart Side Drawer */}
-          {cartOpen && cartItem && (
-            <div className="fixed top-[108px] right-0 bottom-0 w-80 bg-white shadow-[-5px_0_15px_rgba(0,0,0,0.1)] z-50 border-l border-[#D5D9D9] p-4 animate-in slide-in-from-right">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-[#0F1111] flex items-center gap-2"><CheckCircle className="w-5 h-5 text-[#007600]" /> Added to Cart</h2>
-                <button onClick={() => setCartOpen(false)} className="text-[#565959] hover:text-[#0F1111]">✕</button>
-              </div>
-              <div className="flex gap-3 mb-4">
-                <div className="w-16 h-16 bg-[#F7F8F8] border border-[#D5D9D9] rounded flex items-center justify-center text-3xl shrink-0">{cartItem.icon}</div>
-                <div>
-                  <div className="text-sm text-[#0F1111] font-medium line-clamp-2 leading-tight mb-1">{cartItem.name}</div>
-                  <div className="text-[#B12704] font-bold">₹{cartItem.price.toLocaleString('en-IN')}</div>
-                </div>
-              </div>
-              <div className="bg-[#FFFBF0] border border-[#FFD814]/40 p-2 rounded text-xs mb-4">
-                <span className="font-bold text-[#007600]">+ {cartItem.greenCoins} 🪙 Green Coins earned!</span>
-              </div>
-              <button 
-                onClick={() => { setCartOpen(false); onGoToCart?.(); }} 
-                className="w-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] text-[#0F1111] font-medium py-2 rounded-full mb-2">
-                Cart & Checkout
-              </button>
-              <button onClick={() => setCartOpen(false)} className="w-full border border-[#D5D9D9] hover:bg-[#F7F8F8] text-[#0F1111] font-medium py-2 rounded-full">Continue Shopping</button>
-            </div>
-          )}
-        </>
-      );
+  const handleBuyNow = (product: Product) => {
+    if (onAddToCart) {
+      onAddToCart(product);
     }
-  }
+    if (onGoToCart) {
+      onGoToCart();
+    }
+  };
 
   return (
-    <>
-      {/* ─── Hero Banner ─── */}
-      <div className="relative overflow-hidden">
-        <div className="w-full py-14 px-8 text-center" style={{ background: 'linear-gradient(135deg, #232F3E 0%, #37475A 40%, #485769 70%, #232F3E 100%)' }}>
-          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'repeating-linear-gradient(0deg,#fff 0px,#fff 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#fff 0px,#fff 1px,transparent 1px,transparent 40px)' }} />
-          <div className="relative z-10 max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-[#FF9900]/20 border border-[#FF9900]/40 rounded-full px-4 py-1.5 mb-4">
-              <Recycle className="w-4 h-4 text-[#FF9900]" />
-              <span className="text-[#FF9900] text-sm font-semibold">AI-Powered Circular Commerce · HackOn Season 6</span>
-            </div>
-            <h1 className="text-white text-4xl md:text-5xl font-bold mb-4 leading-tight">
-              Every Return Gets a <span className="text-[#FF9900]">Second Life</span>
-            </h1>
-            <p className="text-[#ccc] text-base mb-8 max-w-xl mx-auto">Shop AI-graded renewed products and peer-to-peer listings. Earn Green Coins on every eco purchase.</p>
-            <div className="flex items-center justify-center gap-3 flex-wrap">
-              <button onClick={() => setActiveTab('renewed')} className="bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] font-bold px-8 py-2.5 rounded-full text-sm border border-[#FCD200] flex items-center gap-2"><Recycle className="w-4 h-4" />Shop Amazon Renewed</button>
-              <button onClick={() => setActiveTab('p2p')} className="bg-white hover:bg-[#F7F8F8] text-[#0F1111] font-bold px-8 py-2.5 rounded-full text-sm border border-[#D5D9D9] flex items-center gap-2"><Users className="w-4 h-4" />Browse P2P Listings</button>
-            </div>
+    <div className="bg-[#EAEDED] pb-12">
+      
+      {/* ─── HERO BANNER ─── */}
+      <section 
+        className="relative overflow-hidden w-full min-h-[360px] flex items-center px-6 md:px-12 py-10"
+        style={{
+          background: 'linear-gradient(90deg, #131921 0%, #232F3E 45%, rgba(35, 47, 62, 0.45) 80%), url("/eco_shopping_banner.png")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'right center'
+        }}
+      >
+        <div className="max-w-xl text-white space-y-5 relative z-10">
+          <div className="inline-flex items-center gap-1.5 bg-emerald-500/25 border border-emerald-400/40 rounded-full px-3.5 py-1 text-xs">
+            <Recycle className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-emerald-300 font-bold tracking-wider uppercase text-[10px]">Certified Circular Ecosystem</span>
           </div>
-          <div className="relative z-10 mt-10 flex items-center justify-center gap-6 md:gap-12 flex-wrap">
-            {[{ value: '1.2M+', label: 'Products Renewed', icon: '♻️' }, { value: '8,400 T', label: 'CO₂ Saved', icon: '🌿' }, { value: '₹54M', label: 'Green Coins Issued', icon: '🪙' }, { value: '320K', label: 'Active Sellers', icon: '👤' }].map((s) => (
-              <div key={s.label} className="text-center"><div className="text-[#FF9900] text-2xl font-bold">{s.icon} {s.value}</div><div className="text-[#CCC] text-xs mt-0.5">{s.label}</div></div>
-            ))}
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+            Shop Smarter.<br />
+            <span className="text-[#FF9900]">Waste Less.</span>
+          </h1>
+          <p className="text-gray-300 text-sm md:text-base leading-relaxed">
+            Discover new and certified refurbished products while helping build a sustainable future.
+          </p>
+          <div className="flex flex-wrap items-center gap-3 pt-3">
+            <a 
+              href="#products-section"
+              className="bg-[#FF9900] hover:bg-[#E08800] text-gray-900 font-bold px-8 py-2.5 rounded-full text-xs shadow-sm hover:shadow transition-all text-center block w-full sm:w-auto cursor-pointer"
+            >
+              Shop Now
+            </a>
+            <button 
+              onClick={onNavigateToSecondLife}
+              className="bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-2.5 rounded-full text-xs border border-white/20 transition-all text-center block w-full sm:w-auto cursor-pointer"
+            >
+              Explore Amazon SecondLife
+            </button>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-5 bg-[#EAEDED]" style={{ borderRadius: '50% 50% 0 0 / 100% 100% 0 0' }} />
-      </div>
+        
+        {/* Subtle bottom curve fading into content */}
+        <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[#EAEDED] to-transparent pointer-events-none" />
+      </section>
 
-      {/* ─── Value Props ─── */}
-      <div className="bg-white border-b border-[#D5D9D9]">
-        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-4 md:gap-8 flex-wrap">
-          {[
-            { icon: <Truck className="w-4 h-4 text-[#007600]" />, text: 'FREE Delivery on Renewed' },
-            { icon: <RotateCcw className="w-4 h-4 text-[#007185]" />, text: '90-Day Renewed Guarantee' },
-            { icon: <ThumbsUp className="w-4 h-4 text-[#FF9900]" />, text: 'AI-Verified Condition' },
-            { icon: <Leaf className="w-4 h-4 text-[#007600]" />, text: 'Earn Green Coins' },
-          ].map((item, i) => (
-            <div key={i} className="flex items-center gap-2 text-[#0F1111] text-xs font-medium">{item.icon}<span>{item.text}</span></div>
-          ))}
+      {/* ─── VALUE STATS ROW (Dynamic Counter Strip) ─── */}
+      <section className="max-w-7xl mx-auto px-4 -mt-8 relative z-20 mb-6">
+        <div className="bg-white dark:bg-[#1A222D] rounded-lg border border-gray-200 dark:border-gray-800 p-5 shadow grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+          
+          <div className="space-y-1">
+            <div className="text-2xl font-black text-[#FF9900] tracking-tight">{secondLifeCount}</div>
+            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Products Given Second Life</div>
+          </div>
+          
+          <div className="space-y-1 border-l border-gray-200 dark:border-gray-800">
+            <div className="text-2xl font-black text-emerald-600 tracking-tight">{co2SavedCount} kg</div>
+            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">CO₂ Saved</div>
+          </div>
+          
+          <div className="space-y-1 border-l border-gray-200 dark:border-gray-800">
+            <div className="text-2xl font-black text-cyan-600 tracking-tight">{wasteCount} kg</div>
+            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Waste Diverted</div>
+          </div>
+
+          <div className="space-y-1 border-l border-gray-200 dark:border-gray-800">
+            <div className="text-2xl font-black text-yellow-600 tracking-tight">{creditsCount} 🪙</div>
+            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Eco Credits Issued</div>
+          </div>
+
         </div>
-      </div>
+      </section>
 
-      {/* ─── Category Row ─── */}
-      <div className="bg-white border-b border-[#D5D9D9] mb-3">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-2 overflow-x-auto">
-          {CATEGORIES.map((c) => (
-            <button key={c.label} className="flex flex-col items-center gap-1 shrink-0 px-3 py-1 rounded hover:bg-[#F7F8F8]">
-              <span className="text-2xl">{c.icon}</span>
-              <span className="text-[10px] font-medium text-[#0F1111] whitespace-nowrap">{c.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* ─── 12 PRODUCT GRID SECTION ─── */}
+      <section id="products-section" className="max-w-7xl mx-auto px-4 mb-8">
+        <div className="bg-white rounded border border-[#D5D9D9] p-5">
+          <div className="flex items-center gap-2 mb-5 border-b border-gray-100 pb-3">
+            <Flame className="w-5 h-5 text-[#FF9900]" />
+            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Today's Deals & Renewed Offers</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {HOMEPAGE_PRODUCTS.map((product) => {
+              const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+              return (
+                <div 
+                  key={product.id}
+                  className="bg-white border border-[#D5D9D9] rounded flex flex-col h-full hover:shadow-lg transition-all duration-300 relative group overflow-hidden"
+                >
+                  {/* Discount tag badge */}
+                  <span className="absolute top-2.5 left-2.5 bg-[#CC0C39] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-sm z-10">
+                    -{discount}%
+                  </span>
 
-      {/* ─── Products ─── */}
-      <div className="max-w-7xl mx-auto px-3 pb-8">
-        {/* Tabs */}
-        <div className="flex items-center gap-2 mb-4">
-          {(['all', 'renewed', 'p2p'] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`text-sm px-4 py-1.5 rounded-full border transition-colors ${activeTab === tab ? 'bg-[#232F3E] text-white border-[#232F3E] font-semibold' : 'bg-white text-[#0F1111] border-[#D5D9D9] hover:bg-[#F7F8F8]'}`}>
-              {tab === 'all' ? '🌿 All Listings' : tab === 'renewed' ? '♻️ Amazon Renewed' : '👤 P2P Listings'}
-            </button>
-          ))}
-        </div>
+                  {/* Product graphic area */}
+                  <div className="h-48 bg-[#F7F8F8] border-b border-gray-150 flex items-center justify-center text-7xl select-none group-hover:scale-105 transition-transform duration-300">
+                    {product.icon}
+                  </div>
 
-        {/* Renewed */}
-        {(activeTab === 'all' || activeTab === 'renewed') && renewed.length > 0 && (
-          <section className="mb-6">
-            <div className="bg-white border border-[#D5D9D9] px-4 py-3 flex items-center justify-between mb-px">
-              <div className="flex items-center gap-3">
-                <Recycle className="w-5 h-5 text-[#007600]" />
-                <div>
-                  <h2 className="text-lg font-bold text-[#0F1111]">Amazon Renewed</h2>
-                  <p className="text-xs text-[#565959]">Professionally inspected, tested · AI-graded condition</p>
+                  {/* Product details info card */}
+                  <div className="p-4 flex flex-col grow justify-between space-y-3">
+                    <div className="space-y-1.5">
+                      <a href="#" className="font-semibold text-sm text-[#0F1111] hover:text-[#C7511F] hover:underline line-clamp-2 leading-snug">
+                        {product.name}
+                      </a>
+                      
+                      <StarRating rating={product.rating} reviews={product.reviews} />
+
+                      {/* Prime and Renewed Badge markers */}
+                      <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+                        {product.prime && (
+                          <span className="bg-[#00A8E0] text-white text-[9px] font-black px-1.5 py-0.2 rounded-sm italic">prime</span>
+                        )}
+                        <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-sm border ${
+                          product.grade === 'A' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                          product.grade === 'B' ? 'bg-cyan-50 text-cyan-800 border-cyan-200' :
+                          'bg-yellow-50 text-yellow-800 border-yellow-200'
+                        }`}>
+                          Grade {product.grade}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div>
+                        <div className="flex items-baseline">
+                          <span className="text-xs text-gray-500 font-bold mr-0.5">₹</span>
+                          <span className="text-xl font-bold tracking-tight">{product.price.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="text-xs text-gray-400">M.R.P: <span className="line-through">₹{product.originalPrice.toLocaleString('en-IN')}</span></div>
+                      </div>
+
+                      {/* Carbon footprint nudge */}
+                      <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded px-2.5 py-1 text-[10px] flex items-center gap-1.5 font-semibold">
+                        <Leaf className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Saves {product.co2Saved} CO₂ · +{product.greenCoins} 🪙</span>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="space-y-1.5 pt-2">
+                        <button
+                          onClick={() => handleAdd(product)}
+                          className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-gray-900 border border-[#FCD200] font-bold py-1.5 rounded-full text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5" /> Add to Cart
+                        </button>
+                        <button
+                          onClick={() => handleBuyNow(product)}
+                          className="w-full bg-[#FFA41C] hover:bg-[#FA8900] text-gray-900 border border-[#FF8F00] font-bold py-1.5 rounded-full text-xs transition-colors shadow-sm"
+                        >
+                          Buy Now
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <a href="#" className="text-[#007185] hover:text-[#C7511F] text-sm hover:underline flex items-center gap-1">See all <ArrowRight className="w-3.5 h-3.5" /></a>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px">
-              {renewed.map((p) => <ProductCard key={p.id} product={p} onAdd={handleAdd} onClick={setSelectedProductId} />)}
-            </div>
-          </section>
-        )}
-
-        {/* P2P */}
-        {(activeTab === 'all' || activeTab === 'p2p') && p2p.length > 0 && (
-          <section className="mb-6">
-            <div className="bg-white border border-[#D5D9D9] px-4 py-3 flex items-center justify-between mb-px">
-              <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-[#007185]" />
-                <div>
-                  <h2 className="text-lg font-bold text-[#0F1111]">P2P Marketplace</h2>
-                  <p className="text-xs text-[#565959]">Listed by real users · AI-verified condition scores</p>
-                </div>
-              </div>
-              <a href="#" className="text-[#007185] hover:text-[#C7511F] text-sm hover:underline flex items-center gap-1">See all <ArrowRight className="w-3.5 h-3.5" /></a>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px">
-              {p2p.map((p) => <ProductCard key={p.id} product={p} onAdd={handleAdd} onClick={setSelectedProductId} />)}
-            </div>
-          </section>
-        )}
-
-        {/* Empty */}
-        {renewed.length === 0 && p2p.length === 0 && (
-          <div className="bg-white border border-[#D5D9D9] text-center py-20 rounded">
-            <Package className="w-16 h-16 text-[#D5D9D9] mx-auto mb-4" />
-            <h3 className="text-[#0F1111] font-bold text-lg mb-1">No results found</h3>
-            <p className="text-[#565959] text-sm">Try a different search or category.</p>
+              );
+            })}
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* Impact banner */}
-        <div className="bg-white border border-[#D5D9D9] rounded p-5 mt-2">
-          <div className="flex flex-col md:flex-row items-center gap-5">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1"><Leaf className="w-5 h-5 text-[#007600]" /><h3 className="font-bold text-[#0F1111]">🌍 Your Shopping Impact</h3></div>
-              <p className="text-[#565959] text-sm">Every Second Life purchase diverts waste, cuts carbon, and keeps products in circulation.</p>
+      {/* ─── SPECIAL GREEN SUSTAINABILITY SECTION ─── */}
+      <section id="second-life-section" className="max-w-7xl mx-auto px-4 mb-8">
+        <div className="bg-[#E7F4E4] border border-[#C3E6C0] rounded-lg p-6 md:p-8 space-y-6">
+          <div className="text-center max-w-xl mx-auto space-y-1.5">
+            <div className="inline-flex items-center justify-center p-2.5 bg-emerald-500/10 rounded-full text-emerald-600 mb-1">
+              <Recycle className="w-7 h-7" />
             </div>
-            <div className="flex gap-6 shrink-0">
-              {[{ label: 'CO₂ Saved', value: '12.5 kg', color: 'text-[#007600]' }, { label: 'Green Coins', value: '240 🪙', color: 'text-[#C7511F]' }, { label: 'Items Diverted', value: '3', color: 'text-[#007185]' }].map((s) => (
-                <div key={s.label} className="text-center"><div className={`text-xl font-bold ${s.color}`}>{s.value}</div><div className="text-[10px] text-[#565959] mt-0.5">{s.label}</div></div>
-              ))}
+            <h2 className="text-2xl md:text-3xl font-extrabold text-[#007600] tracking-tight">Amazon SecondLife</h2>
+            <p className="text-sm text-emerald-950 font-medium">
+              Give products a meaningful second life. Avoid landfill wastage by shopping AI-graded products, listing returned products on P2P hubs, and earning wallet incentives.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-3">
+            
+            {/* AI Verified */}
+            <div className="bg-white rounded-lg p-5 border border-emerald-200/50 flex flex-col justify-between shadow-sm">
+              <div className="space-y-2.5">
+                <div className="p-2 bg-emerald-500/10 text-emerald-600 w-fit rounded-lg">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-sm">AI Verified Refurbished</h3>
+                <p className="text-xs text-gray-500 leading-normal">
+                  Products returned by customers are visually inspected, functional graded by computer vision diagnostic rigs, and certified for active resale.
+                </p>
+              </div>
             </div>
-            <button className="shrink-0 bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] text-[#0F1111] font-medium px-5 py-2 rounded-full text-sm flex items-center gap-2">
-              <Coins className="w-4 h-4 text-[#007600]" />View My Impact
+
+            {/* Earn Eco Credits */}
+            <div className="bg-white rounded-lg p-5 border border-emerald-200/50 flex flex-col justify-between shadow-sm">
+              <div className="space-y-2.5">
+                <div className="p-2 bg-yellow-500/10 text-yellow-600 w-fit rounded-lg">
+                  <Coins className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-sm">Earn Eco Credits</h3>
+                <p className="text-xs text-gray-500 leading-normal">
+                  Earn wallet Green Coins for returning items, trading in active devices, or purchasing certified eco items. Redeem credits for cart discounts.
+                </p>
+              </div>
+            </div>
+
+            {/* Reduce Waste */}
+            <div className="bg-white rounded-lg p-5 border border-emerald-200/50 flex flex-col justify-between shadow-sm">
+              <div className="space-y-2.5">
+                <div className="p-2 bg-cyan-500/10 text-cyan-600 w-fit rounded-lg">
+                  <HeartPulse className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-sm">Reduce Waste</h3>
+                <p className="text-xs text-gray-500 leading-normal">
+                  By routing items to peer-to-peer markets or local micro-refurbish facilities, we reduce circular logistical transport footprints and prevent landfills.
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+          <div className="flex justify-center pt-3">
+            <button 
+              onClick={onNavigateToSecondLife}
+              className="bg-[#007600] hover:bg-[#005e00] text-white font-bold px-8 py-2.5 rounded-full text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              Visit SecondLife Marketplace <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Cart Side Drawer */}
-      {cartOpen && cartItem && (
-        <div className="fixed top-[108px] right-0 bottom-0 w-80 bg-white shadow-[-5px_0_15px_rgba(0,0,0,0.1)] z-50 border-l border-[#D5D9D9] p-4 animate-in slide-in-from-right">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-[#0F1111] flex items-center gap-2"><CheckCircle className="w-5 h-5 text-[#007600]" /> Added to Cart</h2>
-            <button onClick={() => setCartOpen(false)} className="text-[#565959] hover:text-[#0F1111]">✕</button>
+      {/* ─── HORIZONTAL SCROLL DEALS SECTION ─── */}
+      <section className="max-w-7xl mx-auto px-4 mb-8">
+        <div className="bg-white rounded border border-[#D5D9D9] p-5">
+          <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-3">
+            <Sparkles className="w-4 h-4 text-emerald-600" />
+            <h2 className="text-base font-bold text-gray-900 tracking-tight">Featured Refurbished Super Deals</h2>
           </div>
-          <div className="flex gap-3 mb-4">
-            <div className="w-16 h-16 bg-[#F7F8F8] border border-[#D5D9D9] rounded flex items-center justify-center text-3xl shrink-0">{cartItem.icon}</div>
-            <div>
-              <div className="text-sm text-[#0F1111] font-medium line-clamp-2 leading-tight mb-1">{cartItem.name}</div>
-              <div className="text-[#B12704] font-bold">₹{cartItem.price.toLocaleString('en-IN')}</div>
-            </div>
+
+          {/* Horizonal scroll wrapper */}
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin select-none">
+            {REFURBISHED_DEALS.map((deal) => {
+              return (
+                <div 
+                  key={deal.id}
+                  className="bg-white border border-[#D5D9D9] rounded p-4 flex gap-4 min-w-[280px] sm:min-w-[320px] max-w-sm hover:border-[#FF9900]/40 transition-colors cursor-pointer shrink-0"
+                >
+                  {/* Image wrapper */}
+                  <div className="w-20 h-20 bg-gray-50 rounded border border-gray-150 flex items-center justify-center text-4xl shrink-0">
+                    {deal.icon}
+                  </div>
+
+                  {/* Info details */}
+                  <div className="space-y-1.5 flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-bold text-xs text-gray-900 line-clamp-1 leading-snug">{deal.name}</h4>
+                      <span className={`text-[9px] text-white font-extrabold px-1.5 py-0.2 rounded ${deal.badgeColor} block w-fit mt-1`}>
+                        {deal.condition}
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-sm font-extrabold text-[#B12704]">₹{deal.refurbPrice.toLocaleString('en-IN')}</span>
+                        <span className="text-[10px] text-gray-400 line-through">₹{deal.originalPrice.toLocaleString('en-IN')}</span>
+                      </div>
+                      <span className="text-[10px] text-[#007600] font-semibold">Save {deal.savings}% (Avoid landfill)</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="bg-[#FFFBF0] border border-[#FFD814]/40 p-2 rounded text-xs mb-4">
-            <span className="font-bold text-[#007600]">+ {cartItem.greenCoins} 🪙 Green Coins earned!</span>
-          </div>
-          <button 
-            onClick={() => { setCartOpen(false); onGoToCart?.(); }} 
-            className="w-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] text-[#0F1111] font-medium py-2 rounded-full mb-2">
-            Cart & Checkout
-          </button>
-          <button onClick={() => setCartOpen(false)} className="w-full border border-[#D5D9D9] hover:bg-[#F7F8F8] text-[#0F1111] font-medium py-2 rounded-full">Continue Shopping</button>
+        </div>
+      </section>
+
+      {/* ─── TOAST NOTIFICATION ─── */}
+      {toast && (
+        <div className="fixed bottom-6 right-4 z-50 bg-[#131921] text-white px-4 py-3.5 rounded shadow-2xl flex items-center gap-2 max-w-sm border border-gray-800 animate-slide-in">
+          <CheckCircle className="w-5 h-5 text-[#FF9900] shrink-0" />
+          <span className="text-xs font-semibold">{toast}</span>
         </div>
       )}
-    </>
+
+    </div>
   );
 }
