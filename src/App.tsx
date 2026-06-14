@@ -6,6 +6,7 @@ import { ViewC } from './components/ViewC';
 import { StorefrontPage, type Product } from './components/StorefrontPage';
 import { CustomerStorefrontPage } from './components/CustomerStorefrontPage';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { RedeemPage } from './components/RedeemPage';
 import { X } from 'lucide-react';
 
 type ActiveFlow = null | 'seller' | 'returner' | 'buyer';
@@ -13,6 +14,7 @@ type ActiveFlow = null | 'seller' | 'returner' | 'buyer';
 function App() {
   const [persona, setPersona] = useState<Persona>('storefront');
   const [activeFlow, setActiveFlow] = useState<ActiveFlow>(null);
+  const [showRedeem, setShowRedeem] = useState(false);
   const [homeKey, setHomeKey] = useState(0);
   const [cart, setCart] = useState<Product[]>([]);
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
@@ -47,11 +49,13 @@ function App() {
   const handlePersonaChange = (p: Persona) => {
     setPersona(p);
     setActiveFlow(null);
+    setShowRedeem(false);
   };
 
   const handleHomeClick = () => {
     navigateTo('/');
     setHomeKey(k => k + 1); // Triggers a re-mount of StorefrontPage to close the PDP
+    setShowRedeem(false);
   };
 
   // Clicking "Returns & Orders" routes based on the current persona
@@ -140,6 +144,31 @@ function App() {
     return <AdminDashboard onExit={() => handlePersonaChange('storefront')} liveOrders={orders} soldItems={soldItems} greenCoins={greenCoins} onItemApproved={handleItemApproved} />;
   }
 
+  if (showRedeem) {
+    return (
+      <AmazonShell
+        persona={persona}
+        setPersona={handlePersonaChange}
+        onHomeClick={handleHomeClick}
+        onOrdersClick={handleOrdersClick}
+        onCartClick={handleCartClick}
+        cartCount={cart.length}
+        greenCoins={greenCoins}
+      >
+        <RedeemPage
+          greenCoins={greenCoins}
+          onBack={() => setShowRedeem(false)}
+          onRedeem={(cost, rewardName) => {
+            if (greenCoins >= cost) {
+              setGreenCoins(prev => prev - cost);
+              alert(`Successfully redeemed: ${rewardName}!\n\nA confirmation email will be sent shortly.`);
+            }
+          }}
+        />
+      </AmazonShell>
+    );
+  }
+
   return (
     <>
       {currentPath === '/second-life' ? (
@@ -149,6 +178,7 @@ function App() {
           onHomeClick={handleHomeClick}
           onOrdersClick={handleOrdersClick}
           onCartClick={handleCartClick}
+          onCoinsClick={() => setShowRedeem(true)}
           cartCount={cart.length}
           greenCoins={greenCoins}
           coinAnimating={coinAnimating}
