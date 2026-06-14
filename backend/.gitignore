@@ -140,6 +140,10 @@ dmypy.json
 *~
 .DS_Store
 
-# AWS
+# Node
+node_modules/
+.build-test/
+
+# AWS SAM
 .aws-sam/
 samconfig.toml

@@ -7,18 +7,233 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// ─── HELPER: Tokenize for fuzzy matching ─────────────────────────────────────
+function tokenize(name) {
+  const noise = new Set(['the','a','an','with','and','or','for','in','of','to','from','by','on','at','is','it','its','this','that','gps','mm','inch','gb','ram','storage','display','size']);
+  return name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1 && !noise.has(w));
+}
+
+function matchScore(cartTokens, itemName) {
+  const itemTokens = new Set(tokenize(itemName));
+  if (cartTokens.length === 0 || itemTokens.size === 0) return 0;
+  let matches = 0;
+  for (const token of cartTokens) {
+    for (const itemToken of itemTokens) {
+      if (itemToken.includes(token) || token.includes(itemToken)) { matches++; break; }
+    }
+  }
+  return matches / cartTokens.length;
+}
+
 // ─── ROUTES ──────────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 2: Purchase → Propagates to Seller/Returner's "Past Orders"
+// When a buyer purchases, the item enters the circular economy pipeline
+// ═══════════════════════════════════════════════════════════════════════════════
+app.post('/api/purchase', (req, res) => {
+  const { item_name, item_price, item_icon, buyer_pin_code, buyer_name } = req.body;
+  if (!item_name) return res.status(400).json({ error: 'Missing item_name' });
+
+  const purchaseId = uuidv4();
+  const purchasedItem = {
+    id: purchaseId,
+    name: item_name,
+    price: item_price || 4000,
+    originalPrice: item_price || 4000,
+    icon: item_icon || '📦',
+    buyerPinCode: buyer_pin_code || '110001',
+    buyerName: buyer_name || 'Amit',
+    purchasedAt: new Date().toISOString(),
+    status: 'delivered', // Simulate instant delivery for demo
+  };
+
+  // This item is now in the "past orders" for the buyer — and can be returned/sold
+  mockDb.purchasedItems.push(purchasedItem);
+
+  console.log(`[EcoBridge] Purchase recorded: "${item_name}" by ${buyer_name} in PIN ${buyer_pin_code}`);
+  res.json({ success: true, purchase_id: purchaseId, message: 'Purchase recorded. Item available in Past Orders for return/resale.' });
+});
+
+// Get past purchased items (for Seller/Returner dashboard)
+app.get('/api/past-orders', (req, res) => {
+  res.json({ items: mockDb.purchasedItems });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI Grader — Now saves with PIN code for location-based intercept
+// ═══════════════════════════════════════════════════════════════════════════════
+app.post('/api/grade', (req, res) => {
+  const { image, zip_code, product_name } = req.body;
+  if (!image) return res.status(400).json({ error: 'Missing required field: image' });
+  if (!zip_code) return res.status(400).json({ error: 'Missing required field: zip_code' });
+
+  const imageSize = image.length;
+  const hash = imageSize % 100;
+
+  let condition, grade;
+  if (hash < 35) { condition = 'Like New'; grade = 'A'; }
+  else if (hash < 70) { condition = 'Good'; grade = 'B'; }
+  else if (hash < 90) { condition = 'Acceptable'; grade = 'C'; }
+  else { condition = 'Good'; grade = 'B'; }
+
+  const creditMap = { 'Like New': 1200, 'Good': 800, 'Acceptable': 400, 'Poor': 100 };
+  const routingMap = { 'Like New': 'LOCAL_RESALE', 'Good': 'LOCAL_RESALE', 'Acceptable': 'WAREHOUSE_REFURB', 'Poor': 'RECYCLE' };
+  const carbonMap = { 'Like New': '12.5kg CO2', 'Good': '8.2kg CO2', 'Acceptable': '4.1kg CO2', 'Poor': '2.0kg CO2' };
+
+  const allLabels = [
+    ['Electronics', 'Device', 'Headphones', 'Audio Equipment', 'Gadget'],
+    ['Electronics', 'Phone', 'Mobile Phone', 'Smartphone', 'Screen'],
+    ['Electronics', 'Computer', 'Keyboard', 'Hardware', 'Peripheral'],
+    ['Electronics', 'Camera', 'Lens', 'Photography', 'Device'],
+    ['Electronics', 'Watch', 'Wristwatch', 'Accessory', 'Wearable'],
+    ['Electronics', 'Speaker', 'Audio', 'Bluetooth', 'Portable'],
+    ['Electronics', 'Tablet', 'Screen', 'Display', 'Touchscreen'],
+    ['Electronics', 'Mouse', 'Computer Peripheral', 'Wireless', 'Device'],
+  ];
+  const labelSet = allLabels[hash % allLabels.length];
+  const detectedLabels = labelSet.map((label, i) => {
+    const conf = Math.max(60, 99 - (i * 7) - (hash % 5));
+    return `${label} (${conf}%)`;
+  });
+  const topConfidence = 99 - (hash % 5);
+
+  const itemId = uuidv4();
+  const itemName = product_name || `${labelSet[1] || 'Device'} (AI Graded)`;
+
+  // ★ Save to gradedItems with PIN code for intercept matching
+  mockDb.gradedItems.push({
+    id: itemId,
+    name: itemName,
+    type: 'p2p',
+    category: 'electronics',
+    price: condition === 'Like New' ? 3000 : condition === 'Good' ? 2500 : 1500,
+    originalPrice: 4000,
+    grade,
+    seller: 'Rahul M.',
+    sellerPinCode: zip_code, // ★ PIN code for location matching
+    aiScore: condition === 'Like New' ? 95 : condition === 'Good' ? 82 : 65,
+    condition,
+    carbonSaved: carbonMap[condition],
+    gradedAt: new Date().toISOString(),
+    labels: detectedLabels,
+  });
+
+  // Also add to products for backward compat
+  mockDb.products.push({
+    id: itemId,
+    name: itemName,
+    type: 'p2p',
+    category: 'electronics',
+    price: condition === 'Like New' ? 3000 : condition === 'Good' ? 2500 : 1500,
+    grade,
+    seller: 'Rahul M.',
+    aiScore: condition === 'Like New' ? 95 : condition === 'Good' ? 82 : 65,
+    condition,
+    pinCode: zip_code,
+  });
+
+  console.log(`[EcoBridge] Item graded: "${itemName}" | ${condition} | PIN: ${zip_code}`);
+
+  res.json({
+    health_card: { condition, detected_labels: detectedLabels, confidence: topConfidence },
+    routing_decision: routingMap[condition] || 'LOCAL_RESALE',
+    green_credits: creditMap[condition] || 800,
+    earned_coins: creditMap[condition] || 800,
+    carbon_saved_estimate: carbonMap[condition] || '8.2kg CO2',
+    item_id: itemId,
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 3: Location-Based Intercept — PIN code + fuzzy name match
+// ═══════════════════════════════════════════════════════════════════════════════
+app.post('/api/intercept', (req, res) => {
+  const { zip_code, cart_item_name } = req.body;
+  if (!zip_code) return res.status(400).json({ error: 'Missing required field: zip_code' });
+  if (!cart_item_name) return res.status(400).json({ error: 'Missing required field: cart_item_name' });
+
+  console.log(`[EcoBridge Intercept] Checking: "${cart_item_name}" in PIN ${zip_code}`);
+
+  // Search gradedItems for items matching BOTH:
+  // 1. Fuzzy name match (keyword overlap >= 30%)
+  // 2. Same PIN code (geographic proximity)
+  const cartTokens = tokenize(cart_item_name);
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const item of mockDb.gradedItems) {
+    // ★ PIN CODE FILTER — must be same locality
+    if (item.sellerPinCode !== zip_code) continue;
+
+    // Only match items eligible for P2P (not sent to warehouse/recycle)
+    if (item.condition === 'Poor') continue;
+
+    // Fuzzy name matching
+    const score = matchScore(cartTokens, item.name);
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = item;
+    }
+  }
+
+  // Also check old products array for backward compat
+  if (!bestMatch || bestScore < 0.3) {
+    for (const item of mockDb.products) {
+      if (item.type !== 'p2p') continue;
+      if (item.pinCode && item.pinCode !== zip_code) continue;
+      const score = matchScore(cartTokens, item.name);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = item;
+      }
+    }
+  }
+
+  const MATCH_THRESHOLD = 0.25; // Slightly lower threshold for demo friendliness
+
+  if (bestMatch && bestScore >= MATCH_THRESHOLD) {
+    const condition = bestMatch.condition || 'Good';
+    const ecoPrice = bestMatch.price || Math.round((bestMatch.originalPrice || 4000) * 0.6);
+    const originalPrice = bestMatch.originalPrice || 4000;
+    const discountPercent = Math.round(((originalPrice - ecoPrice) / originalPrice) * 100);
+
+    console.log(`[EcoBridge Intercept] ✓ MATCH FOUND: "${bestMatch.name}" | Score: ${bestScore.toFixed(2)} | PIN: ${bestMatch.sellerPinCode || bestMatch.pinCode}`);
+
+    res.json({
+      match_found: true,
+      item: {
+        item_id: bestMatch.id,
+        product_name: bestMatch.name,
+        condition,
+        price: ecoPrice,
+        seller_id: bestMatch.seller || 'EcoBridge Seller',
+        seller_pin: bestMatch.sellerPinCode || bestMatch.pinCode || zip_code,
+        carbon_saved_estimate: bestMatch.carbonSaved || '8.2kg CO2',
+      },
+      intercept_message: `Wait! A verified neighbor in PIN ${zip_code} is selling this exact item in "${condition}" condition. Buy locally to save money and reduce carbon emissions!`,
+      eco_discount_percent: discountPercent,
+    });
+  } else {
+    console.log(`[EcoBridge Intercept] ✗ No match for "${cart_item_name}" in PIN ${zip_code}`);
+    res.json({
+      match_found: false,
+      message: `No local matches found in PIN ${zip_code}.`,
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Standard API Routes (unchanged)
+// ═══════════════════════════════════════════════════════════════════════════════
 
 // Products
 app.get('/api/products', (req, res) => {
   const { type, category } = req.query;
   let products = mockDb.products;
-  if (type) {
-    products = products.filter(p => p.type === type);
-  }
-  if (category) {
-    products = products.filter(p => p.category === category);
-  }
+  if (type) products = products.filter(p => p.type === type);
+  if (category) products = products.filter(p => p.category === category);
   res.json({ products });
 });
 
@@ -28,77 +243,34 @@ app.get('/api/products/:productId', (req, res) => {
   res.json(product);
 });
 
-// Returns / Trade-In (Smart Return Flow)
+// Returns
 app.post('/api/returns/initiate', (req, res) => {
   const { orderId, reason } = req.body;
   const returnId = uuidv4();
-  mockDb.returns.push({
-    id: returnId,
-    orderId,
-    reason,
-    status: 'pending',
-    facilityId: 'BLR-03'
-  });
+  mockDb.returns.push({ id: returnId, orderId, reason, status: 'pending', facilityId: 'BLR-03' });
   res.json({ returnId, status: 'initiated' });
 });
 
-// Photo Upload + AI Mock (Rekognition + Claude equivalent)
 app.post('/api/returns/:returnId/upload-photo', (req, res) => {
-  const { imageBase64 } = req.body;
   const { returnId } = req.params;
-
-  // Mock AI Scorecard generation based on IMPLEMENTATION.md
-  const scorecard = {
-    conditionScore: 78,
-    cosmeticScore: 6,
-    functionalScore: 9,
-    grade: "B",
-    routingDecision: "p2p_eligible",
-    estimatedResalePrice: 1850,
-    greenCoinsAwarded: 50,
-    shortReason: "Minor cosmetic defect. High demand product. Suitable for P2P.",
-    p2pDescription: "Headphones in good used condition. Tested and working."
-  };
-
+  const scorecard = { conditionScore: 78, cosmeticScore: 6, functionalScore: 9, grade: "B", routingDecision: "p2p_eligible", estimatedResalePrice: 1850, greenCoinsAwarded: 50, shortReason: "Minor cosmetic defect. High demand product. Suitable for P2P.", p2pDescription: "Item in good used condition. Tested and working." };
   const returnItem = mockDb.returns.find(r => r.id === returnId);
-  if (returnItem) {
-    returnItem.scorecard = scorecard;
-    returnItem.aiGeneratedAt = new Date().toISOString();
-  }
-
+  if (returnItem) { returnItem.scorecard = scorecard; returnItem.aiGeneratedAt = new Date().toISOString(); }
   res.json({ success: true, message: "Photo uploaded and analyzed." });
 });
 
 app.get('/api/returns/:returnId/scorecard', (req, res) => {
   const returnItem = mockDb.returns.find(r => r.id === req.params.returnId);
-  if (!returnItem || !returnItem.scorecard) {
-    return res.status(404).json({ error: 'Scorecard not found' });
-  }
+  if (!returnItem || !returnItem.scorecard) return res.status(404).json({ error: 'Scorecard not found' });
   res.json(returnItem.scorecard);
 });
 
 app.post('/api/returns/:returnId/list-p2p', (req, res) => {
   const returnItem = mockDb.returns.find(r => r.id === req.params.returnId);
   if (!returnItem) return res.status(404).json({ error: 'Return not found' });
-
   returnItem.status = 'p2p_listed';
-  
-  // Add 50 Green Coins
   mockDb.users[0].greenCoins += 50;
-
-  // Add product to P2P Marketplace
-  mockDb.products.push({
-    id: uuidv4(),
-    name: "User Listed Item", // In real app, pulled from order info
-    type: "p2p",
-    category: "electronics",
-    price: returnItem.scorecard.estimatedResalePrice,
-    grade: returnItem.scorecard.grade,
-    seller: mockDb.users[0].name,
-    aiScore: returnItem.scorecard.conditionScore,
-    imageUrl: "https://via.placeholder.com/150"
-  });
-
+  mockDb.products.push({ id: uuidv4(), name: "User Listed Item", type: "p2p", category: "electronics", price: returnItem.scorecard.estimatedResalePrice, grade: returnItem.scorecard.grade, seller: mockDb.users[0].name, aiScore: returnItem.scorecard.conditionScore });
   res.json({ success: true, message: 'Listed on P2P marketplace', greenCoinsEarned: 50 });
 });
 
@@ -114,20 +286,13 @@ app.get('/api/admin/returns', (req, res) => {
 app.get('/api/admin/returns/:returnId/ai-report', (req, res) => {
   const returnItem = mockDb.returns.find(r => r.id === req.params.returnId);
   if (!returnItem) return res.status(404).json({ error: 'Return not found' });
-  res.json({
-    product: "Mock Product Name",
-    returnedBy: "Mock User",
-    reason: returnItem.reason,
-    labels: ["Electronics (97%)", "Scratch (62%)"],
-    scorecard: returnItem.scorecard
-  });
+  res.json({ product: "Mock Product Name", returnedBy: "Mock User", reason: returnItem.reason, labels: ["Electronics (97%)", "Scratch (62%)"], scorecard: returnItem.scorecard });
 });
 
 app.put('/api/admin/returns/:returnId/override', (req, res) => {
   const { routing } = req.body;
   const returnItem = mockDb.returns.find(r => r.id === req.params.returnId);
   if (!returnItem) return res.status(404).json({ error: 'Return not found' });
-  
   returnItem.scorecard.routingDecision = routing;
   returnItem.adminOverride = true;
   res.json({ success: true, newRouting: routing });
@@ -136,16 +301,20 @@ app.put('/api/admin/returns/:returnId/override', (req, res) => {
 app.post('/api/admin/returns/:returnId/approve', (req, res) => {
   const returnItem = mockDb.returns.find(r => r.id === req.params.returnId);
   if (!returnItem) return res.status(404).json({ error: 'Return not found' });
-  
   returnItem.status = 'approved';
   res.json({ success: true });
 });
 
-// ─── START SERVER ──────────────────────────────────────────
+// Admin: Get all graded items (for warehouse dashboard)
+app.get('/api/admin/graded-items', (req, res) => {
+  res.json({ items: mockDb.gradedItems });
+});
 
+// ─── START SERVER ──────────────────────────────────────────
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`Server running locally on port ${PORT}`);
+  console.log(`[EcoBridge] Server running on port ${PORT}`);
+  console.log(`[EcoBridge] Graded items in DB: ${mockDb.gradedItems.length}`);
 });
 
 module.exports = app;

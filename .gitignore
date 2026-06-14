@@ -15,7 +15,11 @@ dist-ssr
 # Environment variables
 .env
 .env.local
+.env.production
 .env.*.local
+
+# Generated artifacts
+backend.zip
 
 # Kiro files
 .kiro/

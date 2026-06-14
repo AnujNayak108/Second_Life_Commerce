@@ -16,82 +16,15 @@ function App() {
   const [homeKey, setHomeKey] = useState(0);
   const [cart, setCart] = useState<Product[]>([]);
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
+  const [greenCoins, setGreenCoins] = useState(150);
+  const [coinAnimating, setCoinAnimating] = useState(false);
+  const [soldItems, setSoldItems] = useState<Set<string>>(new Set());
   const [orders, setOrders] = useState<Record<Persona, any[]>>({
-    storefront: [
-      {
-        id: 'mock_shoes_storefront',
-        orderId: '402-7291058-3148621',
-        name: 'Pro Running Shoes - Size 9',
-        price: 4000,
-        originalPrice: 4000,
-        datePlaced: 'Yesterday',
-        status: 'Delivered Yesterday',
-        icon: '👟',
-        freeDelivery: true,
-        prime: true,
-        isReturnable: true
-      }
-    ],
-    amit: [
-      {
-        id: 'mock_shoes_amit',
-        orderId: '402-7291058-3148621',
-        name: 'Pro Running Shoes - Size 9',
-        price: 4000,
-        originalPrice: 4000,
-        datePlaced: 'Yesterday',
-        status: 'Delivered Yesterday',
-        icon: '👟',
-        freeDelivery: true,
-        prime: true,
-        isReturnable: true
-      }
-    ],
-    priya: [
-      {
-        id: 'mock_shoes_priya',
-        orderId: '402-7291058-3148621',
-        name: 'Pro Running Shoes - Size 9',
-        price: 4000,
-        originalPrice: 4000,
-        datePlaced: 'Yesterday',
-        status: 'Delivered Yesterday',
-        icon: '👟',
-        freeDelivery: true,
-        prime: true,
-        isReturnable: true
-      }
-    ],
-    rahul: [
-      {
-        id: 'mock_shoes_rahul',
-        orderId: '402-7291058-3148621',
-        name: 'Pro Running Shoes - Size 9',
-        price: 4000,
-        originalPrice: 4000,
-        datePlaced: 'Yesterday',
-        status: 'Delivered Yesterday',
-        icon: '👟',
-        freeDelivery: true,
-        prime: true,
-        isReturnable: true
-      }
-    ],
-    admin: [
-      {
-        id: 'mock_shoes_admin',
-        orderId: '402-7291058-3148621',
-        name: 'Pro Running Shoes - Size 9',
-        price: 4000,
-        originalPrice: 4000,
-        datePlaced: 'Yesterday',
-        status: 'Delivered Yesterday',
-        icon: '👟',
-        freeDelivery: true,
-        prime: true,
-        isReturnable: true
-      }
-    ]
+    storefront: [],
+    amit: [],
+    priya: [],
+    rahul: [],
+    admin: []
   });
 
   // Sync state with popstate event (e.g. browser back/forward buttons)
@@ -147,6 +80,18 @@ function App() {
     setCart(prev => prev.filter(item => item.id !== productId));
   };
 
+  // Green Coins earned callback — triggered by ViewA/ViewB after grading
+  const handleEarnCoins = (amount: number) => {
+    setGreenCoins(prev => prev + amount);
+    setCoinAnimating(true);
+    setTimeout(() => setCoinAnimating(false), 1500);
+  };
+
+  // When seller lists an item via EcoBridge, mark it as sold (hides the trade-in button)
+  const handleItemSold = (orderId: string) => {
+    setSoldItems(prev => new Set([...prev, orderId]));
+  };
+
   const handlePlaceOrder = (items: Product[]) => {
     const generateOrderId = () => {
       const part1 = Math.floor(100 + Math.random() * 900);
@@ -155,25 +100,32 @@ function App() {
       return `${part1}-${part2}-${part3}`;
     };
 
-    const newOrders = items.map(item => ({
-      id: item.id || `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      orderId: generateOrderId(),
-      name: item.name,
-      price: item.price,
-      originalPrice: item.originalPrice || item.price,
-      datePlaced: 'Today',
-      status: 'Preparing for Dispatch',
-      icon: item.icon,
-      freeDelivery: item.freeDelivery || false,
-      prime: item.prime || false,
-      isReturnable: true,
-      co2Saved: (item as any).co2Saved,
-      greenCoins: (item as any).greenCoins
-    }));
+    const newOrders = items.map(item => {
+      const uid = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      return {
+        id: uid,
+        orderId: generateOrderId(),
+        name: item.name,
+        price: item.price,
+        originalPrice: item.originalPrice || item.price,
+        datePlaced: 'Today',
+        status: 'Delivered Today',
+        icon: item.icon,
+        freeDelivery: item.freeDelivery || false,
+        prime: item.prime || false,
+        isReturnable: true,
+        co2Saved: (item as any).co2Saved,
+        greenCoins: (item as any).greenCoins
+      };
+    });
 
+    // Propagate to ALL personas with unique IDs
     setOrders(prev => ({
       ...prev,
-      [persona]: [...newOrders, ...prev[persona]]
+      [persona]: [...newOrders, ...prev[persona]],
+      // Items appear in Seller's and Returner's orders (simulates time passing)
+      rahul: [...newOrders.map(o => ({ ...o, id: `${o.id}_seller`, status: 'Delivered — EcoBridge Eligible' })), ...prev.rahul],
+      priya: [...newOrders.map(o => ({ ...o, id: `${o.id}_returner`, status: 'Delivered — Returnable' })), ...prev.priya],
     }));
     setCart([]);
   };
@@ -192,6 +144,8 @@ function App() {
           onOrdersClick={handleOrdersClick}
           onCartClick={handleCartClick}
           cartCount={cart.length}
+          greenCoins={greenCoins}
+          coinAnimating={coinAnimating}
         >
           {/* ─── Storefront is ALWAYS the base content for SecondLife ─── */}
           <StorefrontPage key={homeKey} onGoToCart={handleCartClick} onAddToCart={handleAddToCart} />
@@ -237,8 +191,8 @@ function App() {
             </div>
           </div>
           {/* Flow content */}
-          {activeFlow === 'seller' && <ViewA />}
-          {activeFlow === 'returner' && <ViewB orders={orders[persona]} />}
+          {activeFlow === 'seller' && <ViewA onEarnCoins={handleEarnCoins} orders={orders.rahul} soldItems={soldItems} onItemSold={handleItemSold} />}
+          {activeFlow === 'returner' && <ViewB orders={orders[persona]} onEarnCoins={handleEarnCoins} />}
           {activeFlow === 'buyer' && (
             <ViewC 
               cart={cart} 

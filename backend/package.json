@@ -1,22 +1,32 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "main": "index.js",
-  "directories": {
-    "test": "tests"
-  },
+  "name": "ecobridge-backend",
+  "version": "2.0.0",
+  "description": "EcoBridge serverless backend - TypeScript Lambda functions",
+  "main": "lambda.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "deploy": "cd infrastructure && sam build && sam deploy --guided",
+    "deploy:quick": "cd infrastructure && sam build && sam deploy --no-confirm-changeset",
+    "local:api": "cd infrastructure && sam local start-api --port 3001",
+    "test": "echo \"Tests not yet configured\" && exit 0"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["ecobridge", "serverless", "rekognition"],
+  "author": "EcoBridge Team",
   "license": "ISC",
-  "description": "",
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.700.0",
+    "@aws-sdk/client-rekognition": "^3.700.0",
+    "@aws-sdk/lib-dynamodb": "^3.700.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "serverless-http": "^4.0.0",
     "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^20.14.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
   }
 }

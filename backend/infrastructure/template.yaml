@@ -2,21 +2,29 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
   Amazon EcoBridge - Serverless backend for hyper-local circular economy.
-  DynamoDB + Lambda (Node.js 20.x) + API Gateway.
+  TypeScript Lambdas compiled with esbuild + DynamoDB + API Gateway.
 
 Globals:
   Function:
     Runtime: nodejs20.x
     MemorySize: 512
     Timeout: 30
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref EcoBridgeTable
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowOrigin: "'*'"
 
 Resources:
-  # -------------------------------------------------------
-  # DynamoDB Table: EcoBridge_Listings
-  # Partition key: PK (String)
-  # Sort key: SK (String)
-  # -------------------------------------------------------
-  EcoBridgeListingsTable:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # DynamoDB Table: Single-table design
+  # ─────────────────────────────────────────────────────────────────────────────
+  EcoBridgeTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: SecondLifeCommerceDB
@@ -53,40 +61,129 @@ Resources:
           Projection:
             ProjectionType: ALL
 
-  # -------------------------------------------------------
-  # API Gateway REST API
-  # -------------------------------------------------------
+  # ─────────────────────────────────────────────────────────────────────────────
+  # API Gateway
+  # ─────────────────────────────────────────────────────────────────────────────
   EcoBridgeApi:
     Type: AWS::Serverless::Api
     Properties:
       Name: EcoBridgeApi
       StageName: prod
 
-  # -------------------------------------------------------
-  # Lambda Function: Express API Handler
-  # Handles all /api/* routes via serverless-http
-  # -------------------------------------------------------
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Lambda: AI Grader (TypeScript + esbuild)
+  # POST /api/grade
+  # ─────────────────────────────────────────────────────────────────────────────
+  GraderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EcoBridge-AI-Grader
+      Handler: handler.handler
+      CodeUri: ../lambdas/grader/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:Query
+              Resource:
+                - !GetAtt EcoBridgeTable.Arn
+                - !Sub "${EcoBridgeTable.Arn}/index/*"
+            - Effect: Allow
+              Action:
+                - rekognition:DetectLabels
+              Resource: "*"
+      Events:
+        GradePost:
+          Type: Api
+          Properties:
+            RestApiId: !Ref EcoBridgeApi
+            Path: /api/grade
+            Method: POST
+        GradeOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref EcoBridgeApi
+            Path: /api/grade
+            Method: OPTIONS
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: false
+        EntryPoints:
+          - handler.ts
+        External:
+          - "@aws-sdk/client-rekognition"
+          - "@aws-sdk/client-dynamodb"
+          - "@aws-sdk/lib-dynamodb"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Lambda: Checkout Intercept (TypeScript + esbuild)
+  # POST /api/intercept
+  # ─────────────────────────────────────────────────────────────────────────────
+  InterceptFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EcoBridge-Checkout-Intercept
+      Handler: handler.handler
+      CodeUri: ../lambdas/intercept/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:GetItem
+              Resource:
+                - !GetAtt EcoBridgeTable.Arn
+                - !Sub "${EcoBridgeTable.Arn}/index/*"
+      Events:
+        InterceptPost:
+          Type: Api
+          Properties:
+            RestApiId: !Ref EcoBridgeApi
+            Path: /api/intercept
+            Method: POST
+        InterceptOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref EcoBridgeApi
+            Path: /api/intercept
+            Method: OPTIONS
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: false
+        EntryPoints:
+          - handler.ts
+        External:
+          - "@aws-sdk/client-dynamodb"
+          - "@aws-sdk/lib-dynamodb"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Lambda: Express API (catch-all for remaining routes)
+  # Serves /api/products, /api/returns/*, /api/admin/* via serverless-http
+  # ─────────────────────────────────────────────────────────────────────────────
   ExpressApiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: SecondLifeCommerceAPI
+      FunctionName: EcoBridge-Express-API
       Handler: lambda.handler
       CodeUri: ../
-      Environment:
-        Variables:
-          TABLE_NAME: !Ref EcoBridgeListingsTable
+      Runtime: nodejs20.x
       Policies:
         - Statement:
             - Effect: Allow
               Action:
                 - dynamodb:*
-              Resource: 
-                - !GetAtt EcoBridgeListingsTable.Arn
-                - !Sub "${EcoBridgeListingsTable.Arn}/index/*"
-            - Effect: Allow
-              Action:
-                - rekognition:DetectLabels
-              Resource: '*'
+              Resource:
+                - !GetAtt EcoBridgeTable.Arn
+                - !Sub "${EcoBridgeTable.Arn}/index/*"
       Events:
         ProxyApiRoot:
           Type: Api
@@ -104,4 +201,13 @@ Resources:
 Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL
-    Value: !Sub https://${EcoBridgeApi}.execute-api.${AWS::Region}.amazonaws.com/prod/api
+    Value: !Sub https://${EcoBridgeApi}.execute-api.${AWS::Region}.amazonaws.com/prod
+  GraderFunctionArn:
+    Description: Grader Lambda ARN
+    Value: !GetAtt GraderFunction.Arn
+  InterceptFunctionArn:
+    Description: Intercept Lambda ARN
+    Value: !GetAtt InterceptFunction.Arn
+  TableName:
+    Description: DynamoDB Table
+    Value: !Ref EcoBridgeTable

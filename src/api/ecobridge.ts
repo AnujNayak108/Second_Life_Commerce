@@ -2,7 +2,7 @@
  * EcoBridge Backend API Client
  */
 
-const API_BASE_URL = import.meta.env.VITE_ECOBRIDGE_API_URL || "http://localhost:4000/api";
+const API_BASE_URL = import.meta.env.VITE_ECOBRIDGE_API_URL || "https://4w990xpwkg.execute-api.ap-south-1.amazonaws.com/prod/api";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -122,14 +122,19 @@ export async function interceptCheckout(
   zipCode: string,
   cartItemName: string
 ): Promise<InterceptResponse> {
-  // Use variables to silence typescript
-  void zipCode;
-  void cartItemName;
-
-  // Temporary mock since intercept logic wasn't explicitly redefined in IMPLEMENTATION.md
-  return {
-    match_found: false,
-    message: "No local matches found."
-  };
+  try {
+    const response = await fetch(`${API_BASE_URL}/intercept`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ zip_code: zipCode, cart_item_name: cartItemName }),
+    });
+    if (!response.ok) {
+      return { match_found: false, message: "No local matches found." };
+    }
+    return response.json();
+  } catch {
+    // Network error fallback — don't block checkout
+    return { match_found: false, message: "No local matches found." };
+  }
 }
 
