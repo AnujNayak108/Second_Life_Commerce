@@ -15,18 +15,79 @@ import { SustainabilityPage } from './SustainabilityPage';
 
 interface AdminDashboardProps {
   onExit: () => void;
+  liveOrders?: Record<string, any[]>;
+  soldItems?: Set<string>;
+  greenCoins?: number;
+  onItemApproved?: (item: any) => void;
 }
 
-export function AdminDashboard({ onExit }: AdminDashboardProps) {
+export function AdminDashboard({ onExit, liveOrders = {}, soldItems = new Set(), greenCoins = 150, onItemApproved }: AdminDashboardProps) {
   // Navigation & Sidebar states
   const [activeView, setActiveView] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [returnsStatusFilter, setReturnsStatusFilter] = useState('All');
   
+  const API_URL = import.meta.env.VITE_ECOBRIDGE_API_URL || 'https://4w990xpwkg.execute-api.ap-south-1.amazonaws.com/prod';
+  
   // App-level Shared State (in memory mock database)
-  const [returns, setReturns] = useState<ReturnItem[]>(MOCK_RETURNS);
+  // Merge live data from the app (items sold via EcoBridge) with static mock data
+  const liveReturns: ReturnItem[] = (() => {
+    const allOrders = Object.values(liveOrders).flat();
+    const soldOrderIds = [...soldItems];
+    return soldOrderIds.map((id, idx) => {
+      const order = allOrders.find(o => o.id === id);
+      if (!order) return null;
+      return {
+        id: `LIVE-${idx + 1}`,
+        customer: 'Rahul (Seller)',
+        product: order.name || 'Unknown Product',
+        category: 'Electronics' as const,
+        condition: 'Good' as const,
+        aiDecision: 'Resell' as const,
+        confidence: 92,
+        status: 'Approved' as const,
+        date: new Date().toISOString().split('T')[0],
+        reason: 'EcoBridge Trade-In via AI Scanner',
+        originalPrice: order.price || 4000,
+        estimatedResalePrice: Math.round((order.price || 4000) * 0.65),
+        conditionScore: 88,
+        damageLabels: ['AI Graded', 'Two-Layer Verified', 'Seller Self-Report'],
+        images: [order.icon || '📦'],
+        timeline: [
+          { stage: 'AI Scan Completed', date: 'Today', details: 'Rekognition visual grading passed', completed: true },
+          { stage: 'Seller Verification', date: 'Today', details: 'Layer 2 self-report completed', completed: true },
+          { stage: 'Listed on EcoBridge P2P', date: 'Today', details: 'Available for local buyers in PIN 110001', completed: true },
+        ],
+      } as ReturnItem;
+    }).filter(Boolean) as ReturnItem[];
+  })();
+
+  const [returns, setReturns] = useState<ReturnItem[]>([...liveReturns, ...MOCK_RETURNS]);
   const [listings, setListings] = useState<MarketplaceListing[]>(MOCK_MARKETPLACE);
   const [selectedReturnId, setSelectedReturnId] = useState<string | null>(null);
+
+  // Fetch live P2P items from backend (silently fail if CORS blocked)
+  useEffect(() => {
+    fetch(`${API_URL}/api/admin/items?facilityPincode=110001`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.items?.length > 0) {
+          const liveListings: MarketplaceListing[] = data.items.map((item: any) => ({
+            id: item.id,
+            product: item.name || 'Unknown Product',
+            category: item.category || 'Electronics',
+            condition: item.condition || 'Good',
+            resalePrice: item.price || 2500,
+            originalPrice: item.originalPrice || 4000,
+            inventory: 1,
+            status: item.listingStatus === 'LISTED' ? 'Active' as const : 'Draft' as const,
+            image: item.icon || item.listingImages?.[0] || '📦',
+          }));
+          setListings(prev => [...liveListings, ...prev.filter(m => !liveListings.some(l => l.id === m.id))]);
+        }
+      })
+      .catch(() => {}); // Silently fall back to mock data
+  }, []);
 
   // Time clock state
   const [timeStr, setTimeStr] = useState('');
@@ -88,10 +149,38 @@ export function AdminDashboard({ onExit }: AdminDashboardProps) {
           resalePrice: item.estimatedResalePrice,
           originalPrice: item.originalPrice,
           inventory: 1,
-          status: 'Draft',
+          status: 'Active',
           image: item.images[0] || '📦'
         };
         setListings(prev => [newListing, ...prev]);
+        
+        // ★ Push to P2P marketplace (visible to buyers)
+        if (onItemApproved) {
+          onItemApproved({
+            id: item.id,
+            name: item.product + ' (AI Verified)',
+            price: item.estimatedResalePrice,
+            originalPrice: item.originalPrice,
+            grade: item.condition === 'Like New' ? 'A' : item.condition === 'Good' ? 'B' : 'C',
+            rating: 4.7,
+            reviews: 1,
+            type: 'p2p',
+            seller: item.customer || 'EcoBridge Seller',
+            aiScore: item.conditionScore || 85,
+            greenCoins: item.condition === 'Like New' ? 180 : 120,
+            co2Saved: '8.2 kg',
+            icon: item.images[0] || '♻️',
+            freeDelivery: true,
+            prime: true,
+          });
+        }
+
+        // Backend sync (silent)
+        fetch(`${API_URL}/api/admin/items/${item.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'LIST_P2P', facilityPincode: '110001' }),
+        }).catch(() => {});
       }
     }
   };
@@ -100,16 +189,33 @@ export function AdminDashboard({ onExit }: AdminDashboardProps) {
     setListings(prev => {
       const exists = prev.some(x => x.id === id);
       if (!exists) {
-        // Create manual listing
         const newL = { ...updates } as MarketplaceListing;
         return [newL, ...prev];
       }
       return prev.map(item => item.id === id ? { ...item, ...updates } : item);
     });
+
+    // Backend sync (silent)
+    let action = '';
+    if (updates.status === 'Active') action = 'LIST_P2P';
+    else if (updates.status === 'Draft') action = 'UNLIST_P2P';
+    else if (updates.status === 'Refurbishing') action = 'MOVE_TO_REFURBISHED';
+    if (action) {
+      fetch(`${API_URL}/api/admin/items/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, facilityPincode: '110001' }),
+      }).catch(() => {});
+    }
   };
 
   const handleRemoveListing = (id: string) => {
     setListings(prev => prev.filter(item => item.id !== id));
+    fetch(`${API_URL}/api/admin/items/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'MOVE_TO_WAREHOUSE', facilityPincode: '110001' }),
+    }).catch(() => {});
   };
 
   const handleViewDetails = (id: string) => {
@@ -392,7 +498,14 @@ export function AdminDashboard({ onExit }: AdminDashboardProps) {
             
             {/* View router switcher */}
             {activeView === 'dashboard' && (
-              <DashboardHome onNavigate={(v) => handleSidebarNavigate(v)} />
+              <DashboardHome 
+                onNavigate={(v) => handleSidebarNavigate(v)} 
+                liveStats={{ 
+                  totalReturns: liveReturns.length, 
+                  soldCount: soldItems.size, 
+                  greenCoins 
+                }}
+              />
             )}
 
             {activeView === 'returns' && (

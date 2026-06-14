@@ -261,7 +261,7 @@ function ProductDetailPage({ product, onBack, onAdd }: { product: Product; onBac
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function StorefrontPage({ onGoToCart, onAddToCart }: { onGoToCart?: () => void; onAddToCart?: (p: Product) => void }) {
+export function StorefrontPage({ onGoToCart, onAddToCart, approvedP2PItems = [] }: { onGoToCart?: () => void; onAddToCart?: (p: Product) => void; approvedP2PItems?: Product[] }) {
   const [activeTab, setActiveTab] = useState<'all' | 'renewed' | 'p2p'>('all');
   const [searchQuery] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
@@ -269,22 +269,21 @@ export function StorefrontPage({ onGoToCart, onAddToCart }: { onGoToCart?: () =>
   const [cartItem, setCartItem] = useState<Product | null>(null);
 
   const handleAdd = (id: string) => {
-    const p = [...RENEWED_PRODUCTS, ...P2P_PRODUCTS].find((x) => x.id === id);
+    const p = [...RENEWED_PRODUCTS, ...P2P_PRODUCTS, ...approvedP2PItems].find((x) => x.id === id);
     if (p) { 
       setCartItem(p);
       setCartOpen(true);
       if (onAddToCart) onAddToCart(p);
-      // Auto close after 5s
       setTimeout(() => setCartOpen(false), 5000);
     }
   };
 
   const renewed = RENEWED_PRODUCTS.filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  const p2p = P2P_PRODUCTS.filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const p2p = [...approvedP2PItems, ...P2P_PRODUCTS].filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   // If a product is selected, render the PDP
   if (selectedProductId) {
-    const p = [...RENEWED_PRODUCTS, ...P2P_PRODUCTS].find((x) => x.id === selectedProductId);
+    const p = [...RENEWED_PRODUCTS, ...P2P_PRODUCTS, ...approvedP2PItems].find((x) => x.id === selectedProductId);
     if (p) {
       return (
         <>

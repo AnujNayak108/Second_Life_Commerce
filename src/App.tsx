@@ -19,6 +19,7 @@ function App() {
   const [greenCoins, setGreenCoins] = useState(150);
   const [coinAnimating, setCoinAnimating] = useState(false);
   const [soldItems, setSoldItems] = useState<Set<string>>(new Set());
+  const [approvedP2PItems, setApprovedP2PItems] = useState<any[]>([]);
   const [orders, setOrders] = useState<Record<Persona, any[]>>({
     storefront: [],
     amit: [],
@@ -92,6 +93,11 @@ function App() {
     setSoldItems(prev => new Set([...prev, orderId]));
   };
 
+  // When admin approves an item, add to P2P listings
+  const handleItemApproved = (item: any) => {
+    setApprovedP2PItems(prev => [item, ...prev.filter(p => p.id !== item.id)]);
+  };
+
   const handlePlaceOrder = (items: Product[]) => {
     const generateOrderId = () => {
       const part1 = Math.floor(100 + Math.random() * 900);
@@ -131,7 +137,7 @@ function App() {
   };
 
   if (persona === 'admin') {
-    return <AdminDashboard onExit={() => handlePersonaChange('storefront')} />;
+    return <AdminDashboard onExit={() => handlePersonaChange('storefront')} liveOrders={orders} soldItems={soldItems} greenCoins={greenCoins} onItemApproved={handleItemApproved} />;
   }
 
   return (
@@ -148,7 +154,7 @@ function App() {
           coinAnimating={coinAnimating}
         >
           {/* ─── Storefront is ALWAYS the base content for SecondLife ─── */}
-          <StorefrontPage key={homeKey} onGoToCart={handleCartClick} onAddToCart={handleAddToCart} />
+          <StorefrontPage key={homeKey} onGoToCart={handleCartClick} onAddToCart={handleAddToCart} approvedP2PItems={approvedP2PItems} />
         </AmazonShell>
       ) : (
         <CustomerStorefrontPage 

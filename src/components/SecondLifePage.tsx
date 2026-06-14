@@ -5,6 +5,7 @@ import {
   CheckCircle, MapPin, Sparkles, User, 
   Sliders, ShoppingCart
 } from 'lucide-react';
+import { P2PProductDetail } from './P2PProductDetail';
 
 // Product Type
 interface P2PProduct {
@@ -34,13 +35,15 @@ interface SecondLifePageProps {
   setUserCo2Saved: React.Dispatch<React.SetStateAction<number>>;
 }
 
-// Initial P2P Listings
+// Initial P2P Listings (fallback if backend unavailable)
 const INITIAL_P2P_PRODUCTS: P2PProduct[] = [
   { id: 'p2p1', name: 'Sony WH-1000XM4 Noise Cancelling Headphones (AI Inspected)', price: 13999, originalPrice: 24990, grade: 'A', rating: 4.8, reviews: 142, seller: 'Priya S.', aiScore: 94, greenCoins: 180, co2Saved: '5.2 kg', icon: '🎧', freeDelivery: true, prime: true },
   { id: 'p2p2', name: 'Keychron K2 V2 Mechanical Keyboard (Brown Switches)', price: 4500, originalPrice: 7999, grade: 'A', rating: 4.7, reviews: 38, seller: 'Rahul M.', aiScore: 92, greenCoins: 90, co2Saved: '1.8 kg', icon: '⌨️', freeDelivery: true, prime: false },
   { id: 'p2p3', name: 'Apple Watch Series 7 GPS 41mm Smartwatch', price: 18500, originalPrice: 41900, grade: 'B', rating: 4.5, reviews: 94, seller: 'Amit K.', aiScore: 86, greenCoins: 240, co2Saved: '12.4 kg', icon: '⌚', freeDelivery: true, prime: true },
   { id: 'p2p4', name: 'Kindle Paperwhite (10th Gen) 8GB Waterproof', price: 6500, originalPrice: 12999, grade: 'B', rating: 4.6, reviews: 52, seller: 'Neha P.', aiScore: 88, greenCoins: 50, co2Saved: '0.6 kg', icon: '📚', freeDelivery: true, prime: true }
 ];
+
+const P2P_API_URL = import.meta.env.VITE_ECOBRIDGE_API_URL || 'https://4w990xpwkg.execute-api.ap-south-1.amazonaws.com/prod';
 
 // Past Purchases mock data
 const PAST_PURCHASES = [
@@ -59,6 +62,35 @@ export function SecondLifePage({
   setUserCo2Saved
 }: SecondLifePageProps) {
   const [p2pProducts, setP2pProducts] = useState<P2PProduct[]>(INITIAL_P2P_PRODUCTS);
+  const [detailProductId, setDetailProductId] = useState<string | null>(null);
+
+  // Fetch live approved P2P items from backend (silent fail on CORS)
+  useEffect(() => {
+    fetch(`${P2P_API_URL}/api/admin/items?facilityPincode=110001&listingStatus=LISTED`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.items?.length > 0) {
+          const liveProducts: P2PProduct[] = data.items.map((item: any) => ({
+            id: item.id,
+            name: item.name + ' (AI Verified)',
+            price: item.price || 2500,
+            originalPrice: item.originalPrice || 4000,
+            grade: item.grade || 'B',
+            rating: 4.7,
+            reviews: Math.floor(Math.random() * 50) + 10,
+            seller: item.seller || item.sellerName || 'EcoBridge Seller',
+            aiScore: item.aiScore || 85,
+            greenCoins: item.grade === 'A' ? 180 : item.grade === 'B' ? 120 : 60,
+            co2Saved: item.carbonSaved || '8.2 kg',
+            icon: item.icon || '♻️',
+            freeDelivery: true,
+            prime: true,
+          }));
+          setP2pProducts(prev => [...liveProducts, ...prev.filter(p => !liveProducts.some(l => l.id === p.id))]);
+        }
+      })
+      .catch(() => {}); // Fall back to initial products if CORS blocked
+  }, []);
   
   // Scanning flow states
   const [scanStep, setScanStep] = useState<'select' | 'scanning' | 'results' | 'success'>('select');
@@ -185,6 +217,17 @@ export function SecondLifePage({
 
   return (
     <div className="bg-[#EAEDED] min-h-screen pb-16">
+
+      {/* P2P Product Detail Overlay */}
+      {detailProductId && (
+        <div className="fixed inset-0 z-50 bg-[#EAEDED] overflow-y-auto">
+          <P2PProductDetail 
+            productId={detailProductId} 
+            onBack={() => setDetailProductId(null)} 
+            onAddToCart={onAddToCart}
+          />
+        </div>
+      )}
       
       {/* ─── GREEN SUITE SUBHEADER ─── */}
       <div className="bg-[#0F5132] text-white py-8 px-6 md:px-12 relative overflow-hidden shadow-md">
@@ -280,7 +323,7 @@ export function SecondLifePage({
                         <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1">
                           <User className="w-3 h-3" /> Listed by {product.seller}
                         </div>
-                        <h3 className="font-bold text-sm text-[#0F1111] line-clamp-2 leading-snug">
+                        <h3 onClick={() => setDetailProductId(product.id)} className="font-bold text-sm text-[#007185] hover:text-[#C7511F] hover:underline line-clamp-2 leading-snug cursor-pointer">
                           {product.name}
                         </h3>
                         

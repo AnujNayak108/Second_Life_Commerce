@@ -7,24 +7,29 @@ import {
   RotateCcw, Shield, Trash2, Gift, Coins, Leaf, Trash, TrendingUp, TrendingDown 
 } from 'lucide-react';
 import { 
-  MOCK_RETURNS, RETURN_DISTRIBUTION, MONTHLY_RETURNS, CATEGORY_DISTRIBUTION, SUSTAINABILITY_HISTORY 
+  RETURN_DISTRIBUTION, MONTHLY_RETURNS, CATEGORY_DISTRIBUTION, SUSTAINABILITY_HISTORY 
 } from './mockData';
 
 interface DashboardHomeProps {
   onNavigate: (view: string) => void;
+  liveStats?: { totalReturns: number; soldCount: number; greenCoins: number };
 }
 
-export function DashboardHome({ onNavigate }: DashboardHomeProps) {
-  // KPI Data
+export function DashboardHome({ onNavigate, liveStats }: DashboardHomeProps) {
+  // KPI Data â€” merge live stats with static data
+  const totalReturns = (liveStats?.totalReturns || 0) + 245;
+  const resoldProducts = (liveStats?.soldCount || 0) + 180;
+  const totalCoins = (liveStats?.greenCoins || 0) + 5400;
+
   const kpis = [
-    { title: 'Total Returns', value: '245', change: '+12.4%', up: true, icon: RotateCcw, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20', view: 'returns-pending' },
-    { title: 'Resold Products', value: '180', change: '+18.2%', up: true, icon: Leaf, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20', view: 'marketplace' },
+    { title: 'Total Returns', value: totalReturns.toString(), change: '+12.4%', up: true, icon: RotateCcw, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20', view: 'returns-pending' },
+    { title: 'Resold Products', value: resoldProducts.toString(), change: '+18.2%', up: true, icon: Leaf, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20', view: 'marketplace' },
     { title: 'Refurbished Products', value: '40', change: '+4.5%', up: true, icon: Shield, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20', view: 'marketplace' },
     { title: 'Recycled Products', value: '15', change: '-2.3%', up: false, icon: Trash2, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20', view: 'analytics-sustainability' },
     { title: 'Donated Products', value: '10', change: '0.0%', up: true, icon: Gift, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20', view: 'analytics-sustainability' },
-    { title: 'Eco Credits Issued', value: '5,400', change: '+24.1%', up: true, icon: Coins, color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20', view: 'eco-credits' },
-    { title: 'CO₂ Saved', value: '250 kg', change: '+15.8%', up: true, icon: Leaf, color: 'text-green-500 bg-green-500/10 border-green-500/20', view: 'analytics-sustainability' },
-    { title: 'Waste Diverted', value: '120 kg', change: '+8.9%', up: true, icon: Trash, color: 'text-teal-500 bg-teal-500/10 border-teal-500/20', view: 'analytics-sustainability' },
+    { title: 'Eco Credits Issued', value: totalCoins.toLocaleString(), change: '+24.1%', up: true, icon: Coins, color: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20', view: 'eco-credits' },
+    { title: 'COâ‚‚ Saved', value: `${250 + (liveStats?.soldCount || 0) * 8} kg`, change: '+15.8%', up: true, icon: Leaf, color: 'text-green-500 bg-green-500/10 border-green-500/20', view: 'analytics-sustainability' },
+    { title: 'Waste Diverted', value: `${120 + (liveStats?.soldCount || 0) * 3} kg`, change: '+8.9%', up: true, icon: Trash, color: 'text-teal-500 bg-teal-500/10 border-teal-500/20', view: 'analytics-sustainability' },
   ];
 
   return (
@@ -39,7 +44,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
           onClick={() => onNavigate('returns-pending')}
           className="px-4 py-2 bg-[#FF9900] hover:bg-[#E08800] text-gray-900 font-bold rounded shadow transition-colors text-sm"
         >
-          View Pending Returns ({MOCK_RETURNS.filter(r => r.status === 'Pending').length})
+          View Pending Returns
         </button>
       </div>
 
@@ -90,7 +95,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
             <p className="text-xs text-gray-500 dark:text-gray-400">Total lifecycle paths chosen for returned stock.</p>
           </div>
           <div className="h-64 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
               <RechartsPieChart>
                 <Pie
                   data={RETURN_DISTRIBUTION}
@@ -122,7 +127,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
             <p className="text-xs text-gray-500 dark:text-gray-400">Aggregated count of returned units processed over the last 6 months.</p>
           </div>
           <div className="h-64 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
               <RechartsLineChart data={MONTHLY_RETURNS} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" className="dark:stroke-gray-800" />
                 <XAxis dataKey="name" stroke="#9CA3AF" fontSize={11} tickLine={false} />
@@ -141,14 +146,14 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
             <p className="text-xs text-gray-500 dark:text-gray-400">Carbon offset and waste reduction trends (cumulative scale).</p>
           </div>
           <div className="h-64 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
               <RechartsBarChart data={SUSTAINABILITY_HISTORY} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" className="dark:stroke-gray-800" />
                 <XAxis dataKey="month" stroke="#9CA3AF" fontSize={11} tickLine={false} />
                 <YAxis stroke="#9CA3AF" fontSize={11} tickLine={false} />
                 <Tooltip contentStyle={{ backgroundColor: '#19222D', border: '1px solid #374151', color: '#fff' }} />
                 <Legend />
-                <Bar dataKey="co2" name="CO₂ Saved (kg)" fill="#007600" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="co2" name="COâ‚‚ Saved (kg)" fill="#007600" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="waste" name="Waste Diverted (kg)" fill="#007185" radius={[4, 4, 0, 0]} />
               </RechartsBarChart>
             </ResponsiveContainer>
@@ -162,7 +167,7 @@ export function DashboardHome({ onNavigate }: DashboardHomeProps) {
             <p className="text-xs text-gray-500 dark:text-gray-400">Percentage distribution of customer returns across shopping categories.</p>
           </div>
           <div className="h-64 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
               <RechartsPieChart>
                 <Pie
                   data={CATEGORY_DISTRIBUTION}

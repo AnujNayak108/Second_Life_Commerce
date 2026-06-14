@@ -305,19 +305,19 @@ export function ReturnsPage({ returns, onUpdateReturn, onViewDetails, statusFilt
                             {/* Approve */}
                             <button 
                               onClick={() => onUpdateReturn(item.id, { status: 'Approved' })}
-                              className="p-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded text-gray-500 hover:text-emerald-600 transition-colors"
-                              title="Approve Recommendation"
+                              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 rounded text-emerald-600 font-semibold text-xs flex items-center gap-1 transition-colors border border-emerald-200 dark:border-emerald-500/20"
+                              title="Approve & List on P2P"
                             >
-                              <CheckCircle2 className="w-4 h-4" />
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                             </button>
                             
                             {/* Reject */}
                             <button 
                               onClick={() => onUpdateReturn(item.id, { status: 'Rejected' })}
-                              className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded text-gray-500 hover:text-rose-600 transition-colors"
+                              className="px-3 py-1.5 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded text-gray-500 hover:text-rose-600 text-xs flex items-center gap-1 transition-colors"
                               title="Reject Return"
                             >
-                              <XCircle className="w-4 h-4" />
+                              <XCircle className="w-3.5 h-3.5" /> Reject
                             </button>
 
                             {/* Override Decision Dropdown/Select */}
@@ -344,6 +344,16 @@ export function ReturnsPage({ returns, onUpdateReturn, onViewDetails, statusFilt
                               </div>
                             </div>
                           </>
+                        )}
+                        {item.status === 'Approved' && (
+                          <span className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-xs rounded border border-emerald-200 dark:border-emerald-500/20 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Approved ✓
+                          </span>
+                        )}
+                        {item.status === 'Rejected' && (
+                          <span className="px-3 py-1.5 bg-rose-100 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 font-bold text-xs rounded border border-rose-200 dark:border-rose-500/20 flex items-center gap-1">
+                            <XCircle className="w-3.5 h-3.5" /> Rejected
+                          </span>
                         )}
                       </div>
                     </td>

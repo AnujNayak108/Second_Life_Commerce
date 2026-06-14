@@ -138,3 +138,61 @@ export async function interceptCheckout(
   }
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin API Functions
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AdminItem {
+  id: string;
+  name: string;
+  section: string;
+  listingStatus: string;
+  condition: string;
+  grade: string;
+  price: number;
+  originalPrice: number;
+  listingImages: string[];
+  source: string;
+  adminNotes?: string;
+  seller: string;
+  sellerPinCode: string;
+}
+
+export type AdminAction = 'LIST_P2P' | 'UNLIST_P2P' | 'MOVE_TO_REFURBISHED' | 'MOVE_TO_P2P' | 'MOVE_TO_WAREHOUSE';
+
+export async function adminGetItems(facilityPincode: string, section?: string, listingStatus?: string): Promise<AdminItem[]> {
+  const params = new URLSearchParams({ facilityPincode });
+  if (section) params.append('section', section);
+  if (listingStatus) params.append('listingStatus', listingStatus);
+  const res = await fetch(`${API_BASE_URL}/admin/items?${params}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return data.items;
+}
+
+export async function adminUpdateItem(itemId: string, action: AdminAction, facilityPincode: string, adminNotes?: string): Promise<{ success: boolean; updatedItem: AdminItem }> {
+  const res = await fetch(`${API_BASE_URL}/admin/items/${itemId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, facilityPincode, adminNotes }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function adminScanAndList(payload: { imageBase64: string; productName: string; facilityPincode: string; facilityId: string; estimatedPrice: number; originalPrice: number; adminNotes?: string }): Promise<{ itemId: string; grade: string; condition: string }> {
+  const res = await fetch(`${API_BASE_URL}/admin/scan-and-list`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function getProductDetail(productId: string): Promise<any> {
+  const res = await fetch(`${API_BASE_URL}/product/detail?id=${productId}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}

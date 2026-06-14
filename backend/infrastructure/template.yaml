@@ -1,8 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Amazon EcoBridge - Serverless backend for hyper-local circular economy.
-  TypeScript Lambdas compiled with esbuild + DynamoDB + API Gateway.
+  EcoBridge v2 - Multi-image AI grading pipeline.
+  TypeScript Lambdas + DynamoDB + S3 + Rekognition + API Gateway.
 
 Globals:
   Function:
@@ -12,6 +12,7 @@ Globals:
     Environment:
       Variables:
         TABLE_NAME: !Ref EcoBridgeTable
+        GRADING_MEDIA_BUCKET: !Ref GradingMediaBucket
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
 
   Api:
@@ -22,7 +23,7 @@ Globals:
 
 Resources:
   # ─────────────────────────────────────────────────────────────────────────────
-  # DynamoDB Table: Single-table design
+  # DynamoDB Table
   # ─────────────────────────────────────────────────────────────────────────────
   EcoBridgeTable:
     Type: AWS::DynamoDB::Table
@@ -62,6 +63,44 @@ Resources:
             ProjectionType: ALL
 
   # ─────────────────────────────────────────────────────────────────────────────
+  # S3 Bucket for grading media (images + video)
+  # ─────────────────────────────────────────────────────────────────────────────
+  GradingMediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "secondlife-grading-media-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        IgnorePublicAcls: false
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireRawVideoAfter90Days
+            Status: Enabled
+            ExpirationInDays: 90
+            Prefix: "video-raw/"
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods: [GET, PUT, POST]
+            AllowedOrigins: ["*"]
+            AllowedHeaders: ["*"]
+
+  # Public read policy for grading images (prototype — use CloudFront+signed URLs in production)
+  GradingMediaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref GradingMediaBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: "*"
+            Action: "s3:GetObject"
+            Resource: !Sub "${GradingMediaBucket.Arn}/*"
+
+  # ─────────────────────────────────────────────────────────────────────────────
   # API Gateway
   # ─────────────────────────────────────────────────────────────────────────────
   EcoBridgeApi:
@@ -71,8 +110,49 @@ Resources:
       StageName: prod
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Lambda: AI Grader (TypeScript + esbuild)
-  # POST /api/grade
+  # Lambda: Presigned Upload (TypeScript + esbuild)
+  # POST /api/uploads/presign
+  # ─────────────────────────────────────────────────────────────────────────────
+  PresignFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EcoBridge-Presign-Upload
+      Handler: handler.handler
+      CodeUri: ../lambdas/presign/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: !Sub "${GradingMediaBucket.Arn}/*"
+      Events:
+        PresignPost:
+          Type: Api
+          Properties:
+            RestApiId: !Ref EcoBridgeApi
+            Path: /api/uploads/presign
+            Method: POST
+        PresignOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref EcoBridgeApi
+            Path: /api/uploads/presign
+            Method: OPTIONS
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: false
+        EntryPoints:
+          - handler.ts
+        External:
+          - "@aws-sdk/client-s3"
+          - "@aws-sdk/s3-request-presigner"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Lambda: AI Grader v2 (TypeScript + esbuild)
+  # POST /api/grade — supports v1 (single image) and v2 (multi-image)
   # ─────────────────────────────────────────────────────────────────────────────
   GraderFunction:
     Type: AWS::Serverless::Function
@@ -80,6 +160,11 @@ Resources:
       FunctionName: EcoBridge-AI-Grader
       Handler: handler.handler
       CodeUri: ../lambdas/grader/
+      MemorySize: 1024
+      Timeout: 30
+      Environment:
+        Variables:
+          DAMAGE_DETECTION_MODE: heuristic
       Policies:
         - Statement:
             - Effect: Allow
@@ -87,13 +172,20 @@ Resources:
                 - dynamodb:PutItem
                 - dynamodb:GetItem
                 - dynamodb:Query
+                - dynamodb:UpdateItem
               Resource:
                 - !GetAtt EcoBridgeTable.Arn
                 - !Sub "${EcoBridgeTable.Arn}/index/*"
             - Effect: Allow
               Action:
                 - rekognition:DetectLabels
+                - rekognition:DetectModerationLabels
               Resource: "*"
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: !Sub "${GradingMediaBucket.Arn}/*"
       Events:
         GradePost:
           Type: Api
@@ -119,6 +211,7 @@ Resources:
           - "@aws-sdk/client-rekognition"
           - "@aws-sdk/client-dynamodb"
           - "@aws-sdk/lib-dynamodb"
+          - "@aws-sdk/client-s3"
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Lambda: Checkout Intercept (TypeScript + esbuild)
@@ -166,8 +259,7 @@ Resources:
           - "@aws-sdk/lib-dynamodb"
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Lambda: Express API (catch-all for remaining routes)
-  # Serves /api/products, /api/returns/*, /api/admin/* via serverless-http
+  # Lambda: Express API (catch-all)
   # ─────────────────────────────────────────────────────────────────────────────
   ExpressApiFunction:
     Type: AWS::Serverless::Function
@@ -202,12 +294,14 @@ Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL
     Value: !Sub https://${EcoBridgeApi}.execute-api.${AWS::Region}.amazonaws.com/prod
+  GradingMediaBucketName:
+    Description: S3 bucket for grading media
+    Value: !Ref GradingMediaBucket
   GraderFunctionArn:
-    Description: Grader Lambda ARN
     Value: !GetAtt GraderFunction.Arn
   InterceptFunctionArn:
-    Description: Intercept Lambda ARN
     Value: !GetAtt InterceptFunction.Arn
+  PresignFunctionArn:
+    Value: !GetAtt PresignFunction.Arn
   TableName:
-    Description: DynamoDB Table
     Value: !Ref EcoBridgeTable

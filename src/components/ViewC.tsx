@@ -52,7 +52,7 @@ export function ViewC({
     if (cart.length > 0) setHadItems(true);
   }, [cart.length]);
 
-  // ═══ Phase 3: Intercept Check — uses actual cart item name + PIN code ═══
+  // ═══ Intercept: Query DynamoDB for matching approved P2P items ═══
   useEffect(() => {
     if (cart.length === 0) {
       setState('checkout');
@@ -62,34 +62,22 @@ export function ViewC({
     let cancelled = false;
     async function checkLocalInventory() {
       try {
-        // Use the FIRST item in cart for intercept check
         const cartItemName = cart[0]?.name || '';
-        console.log(`[EcoBridge Intercept] Checking: "${cartItemName}" in PIN ${BUYER_PIN_CODE}`);
-
         const response = await fetch(`${API_URL}/api/intercept`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            zip_code: BUYER_PIN_CODE, 
-            cart_item_name: cartItemName 
-          }),
+          body: JSON.stringify({ zip_code: BUYER_PIN_CODE, cart_item_name: cartItemName }),
         });
+        if (!response.ok || cancelled) { setState('checkout'); return; }
         const data: InterceptResult = await response.json();
         if (cancelled) return;
-        if (!response.ok) { setError('Could not check local inventory.'); setState('checkout'); return; }
-        
         setInterceptData(data);
         setState('checkout');
-        
-        // Show intercept modal if match found
-        if (data.match_found) { 
-          setTimeout(() => { if (!cancelled) setShowModal(true); }, 600); 
+        if (data.match_found && data.item) {
+          setTimeout(() => { if (!cancelled) setShowModal(true); }, 600);
         }
-      } catch (err) {
-        if (cancelled) return;
-        console.error('[EcoBridge Intercept] Error:', err);
-        setError(`Intercept check failed: ${err instanceof Error ? err.message : 'Unknown'}`);
-        setState('checkout');
+      } catch {
+        if (!cancelled) setState('checkout');
       }
     }
     checkLocalInventory();
@@ -118,20 +106,8 @@ export function ViewC({
 
   const handleCheckout = () => {
     if (cart.length > 0 && onPlaceOrder) {
-      // Record purchase on backend so it propagates to Seller/Returner's orders
-      cart.forEach(item => {
-        fetch(`${API_URL}/api/purchase`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            item_name: item.name,
-            item_price: item.price,
-            item_icon: item.icon,
-            buyer_pin_code: BUYER_PIN_CODE,
-            buyer_name: 'Amit',
-          }),
-        }).catch(err => console.warn('[EcoBridge] Purchase record failed:', err));
-      });
+      // Purchase propagation happens in App.tsx (handlePlaceOrder) via React state
+      // No backend call needed — items flow to Rahul/Priya's orders automatically
 
       onPlaceOrder(cart);
       setState('success');

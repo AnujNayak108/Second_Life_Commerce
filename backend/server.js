@@ -61,6 +61,29 @@ app.get('/api/past-orders', (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// Presigned Upload Mock (local dev — returns fake URLs for frontend testing)
+// ═══════════════════════════════════════════════════════════════════════════════
+app.post('/api/uploads/presign', (req, res) => {
+  const { item_id, files } = req.body;
+  if (!item_id) return res.status(400).json({ error: 'Missing item_id' });
+  if (!files || !Array.isArray(files)) return res.status(400).json({ error: 'Missing files array' });
+
+  const uploads = files.map(f => ({
+    angle: f.angle,
+    uploadUrl: `http://localhost:4000/api/dev-upload/${item_id}/${f.angle}`,
+    s3Key: `items/${item_id}/${f.angle}.jpg`,
+    s3Url: `http://localhost:4000/api/dev-upload/${item_id}/${f.angle}`,
+  }));
+
+  res.json({ item_id, uploads, expiresInSeconds: 900 });
+});
+
+// Dev upload endpoint (stores nothing — just acknowledges)
+app.put('/api/dev-upload/:itemId/:angle', (req, res) => {
+  res.status(200).json({ success: true });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // AI Grader — Now saves with PIN code for location-based intercept
 // ═══════════════════════════════════════════════════════════════════════════════
 app.post('/api/grade', (req, res) => {
@@ -228,7 +251,38 @@ app.post('/api/intercept', (req, res) => {
 // Standard API Routes (unchanged)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Products
+function generateDescription(item) {
+  const condition = item.condition || 'Good';
+  const grade = item.grade || 'B';
+  const carbonSaved = item.carbonSaved || '8.2kg CO2';
+  return [
+    'About this item',
+    `• ${condition} condition — AI-verified Grade ${grade}, multi-angle scan`,
+    `• AI Inspection Score: ${item.aiScore || 85}/100`,
+    `• Buying this pre-owned item saves ${carbonSaved} of CO₂ vs buying new`,
+    `• Earn Green Coins 🪙 with this purchase`,
+    '• Sold by verified Second Life Commerce network seller',
+    '• 7-day return window guaranteed',
+  ].join('\n');
+}
+
+// Product Detail (query-param based to avoid Express 5 routing issues)
+app.get('/api/product/detail', (req, res) => {
+  const { id } = req.query;
+  if (!id) return res.status(400).json({ error: 'Missing id param' });
+  const item = mockDb.gradedItems.find(i => i.id === id)
+    || mockDb.products.find(p => p.id === id);
+  if (!item) return res.status(404).json({ error: 'Product not found' });
+  res.json({
+    ...item,
+    listingImages: item.listingImages || [],
+    description: item.description || generateDescription(item),
+    seller: item.seller || 'Anonymous',
+    gradedAt: item.gradedAt || new Date().toISOString(),
+    aiLabels: item.aiLabels || item.labels || [],
+  });
+});
+
 app.get('/api/products', (req, res) => {
   const { type, category } = req.query;
   let products = mockDb.products;
@@ -310,6 +364,83 @@ app.get('/api/admin/graded-items', (req, res) => {
   res.json({ items: mockDb.gradedItems });
 });
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Feature 1: Admin Dashboard CRUD — Items Management
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/admin/items — fetch items filterable by section/status
+app.get('/api/admin/items', (req, res) => {
+  const { facilityPincode, section, listingStatus } = req.query;
+  let items = [...mockDb.gradedItems, ...mockDb.products.filter(p => p.type === 'p2p')];
+  if (facilityPincode) items = items.filter(i => (i.sellerPinCode || i.pinCode) === facilityPincode);
+  if (section) items = items.filter(i => i.section === section);
+  if (listingStatus) items = items.filter(i => i.listingStatus === listingStatus);
+  res.json({ items });
+});
+
+// PUT /api/admin/items/:itemId — admin actions (list, unlist, move sections)
+app.put('/api/admin/items/:itemId', (req, res) => {
+  const { itemId } = req.params;
+  const { action, facilityPincode, adminNotes } = req.body;
+  const item = mockDb.gradedItems.find(i => i.id === itemId) || mockDb.products.find(p => p.id === itemId);
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+
+  const actionMap = {
+    LIST_P2P: { section: 'P2P', listingStatus: 'LISTED' },
+    UNLIST_P2P: { section: 'P2P', listingStatus: 'UNLISTED' },
+    MOVE_TO_REFURBISHED: { section: 'REFURBISHED', listingStatus: 'UNLISTED' },
+    MOVE_TO_P2P: { section: 'P2P', listingStatus: 'LISTED' },
+    MOVE_TO_WAREHOUSE: { section: 'WAREHOUSE_HELD', listingStatus: 'UNLISTED' },
+  };
+
+  Object.assign(item, actionMap[action] || {}, {
+    adminNotes: adminNotes || item.adminNotes,
+    sectionChangedBy: 'ADMIN',
+    sectionChangedAt: new Date().toISOString(),
+  });
+
+  res.json({ success: true, updatedItem: item });
+});
+
+// POST /api/admin/scan-and-list — admin scans warehouse item
+app.post('/api/admin/scan-and-list', (req, res) => {
+  const { imageBase64, productName, facilityPincode, facilityId, estimatedPrice, originalPrice, adminNotes } = req.body;
+  const itemId = uuidv4();
+  const hash = (imageBase64 || '').length % 100;
+  const grade = hash < 35 ? 'A' : hash < 70 ? 'B' : 'C';
+  const condition = grade === 'A' ? 'Like New' : grade === 'B' ? 'Good' : 'Acceptable';
+
+  const newItem = {
+    id: itemId, name: productName, type: 'p2p', category: 'electronics',
+    price: estimatedPrice || 5000, originalPrice: originalPrice || 10000, grade, condition,
+    section: 'P2P', listingStatus: 'LISTED',
+    sellerPinCode: facilityPincode || '110001', facilityId: facilityId || 'BLR-03',
+    source: 'ADMIN_SCAN', adminNotes,
+    listingImages: [],
+    seller: `Admin (${facilityId || 'BLR-03'})`,
+    aiScore: grade === 'A' ? 95 : grade === 'B' ? 82 : 65,
+    carbonSaved: '8.2kg CO2',
+    gradedAt: new Date().toISOString(),
+    description: `About this item\n• ${condition} condition — AI-verified Grade ${grade}\n• Scanned and listed by warehouse admin\n• Saves 8.2 kg CO₂\n• 7-day return window`,
+    aiLabels: ['Electronics (95%)', 'Device (90%)'],
+  };
+
+  mockDb.gradedItems.push(newItem);
+  mockDb.products.push(newItem);
+  res.json({ itemId, grade, condition, item: newItem });
+});
+
+// GET /api/admin/warehouse — items in warehouse not yet listed
+app.get('/api/admin/warehouse', (req, res) => {
+  const { facilityPincode } = req.query;
+  const items = mockDb.gradedItems.filter(i =>
+    (!facilityPincode || (i.sellerPinCode || i.pinCode) === facilityPincode) &&
+    (i.section === 'WAREHOUSE_HELD' || (!i.section && i.listingStatus !== 'LISTED'))
+  );
+  res.json({ items });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ─── START SERVER ──────────────────────────────────────────
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
