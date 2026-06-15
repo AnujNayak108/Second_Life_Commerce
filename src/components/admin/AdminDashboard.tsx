@@ -24,7 +24,7 @@ interface AdminDashboardProps {
 export function AdminDashboard({ onExit, liveOrders = {}, soldItems = new Set(), greenCoins = 150, onItemApproved }: AdminDashboardProps) {
   // Navigation & Sidebar states
   const [activeView, setActiveView] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
   const [returnsStatusFilter, setReturnsStatusFilter] = useState('All');
   
   const API_URL = import.meta.env.VITE_ECOBRIDGE_API_URL || 'https://4w990xpwkg.execute-api.ap-south-1.amazonaws.com/prod';
@@ -327,8 +327,8 @@ export function AdminDashboard({ onExit, liveOrders = {}, soldItems = new Set(),
         
         {/* Collapsible Left Sidebar */}
         <aside className={`${
-          sidebarOpen ? 'w-60' : 'w-16'
-        } bg-[#131921] dark:bg-[#111721] text-gray-300 border-r border-gray-800 flex flex-col justify-between transition-all duration-300 shrink-0 z-30 overflow-y-auto`}>
+          sidebarOpen ? 'w-60' : 'w-0 md:w-16'
+        } bg-[#131921] dark:bg-[#111721] text-gray-300 border-r border-gray-800 flex flex-col justify-between transition-all duration-300 shrink-0 z-30 overflow-y-auto overflow-x-hidden`}>
           
           <nav className="p-3 space-y-4">
             

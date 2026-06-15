@@ -250,7 +250,7 @@ function App() {
 
       {/* ─── Flow Overlays (open on top of storefront/hub) ─── */}
       {activeFlow !== null && (
-        <div className="fixed inset-0 z-40 bg-[#EAEDED] overflow-y-auto" style={{ top: '108px' }}>
+        <div className="fixed inset-0 z-40 bg-[#EAEDED] overflow-y-auto" style={{ top: '0px' }}>
           {/* Close bar */}
           <div className="bg-white border-b border-[#D5D9D9] sticky top-0 z-10">
             <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
