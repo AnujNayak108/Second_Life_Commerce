@@ -87,16 +87,17 @@ export function ViewC({
   const handleAcceptEco = () => { 
     if (onPlaceOrder && interceptData?.item) {
       const item = interceptData.item;
+      const ecoPurchasePrice = Math.round((cart[0]?.price || 4000) * 0.50);
       onPlaceOrder([{
         id: item.item_id,
-        name: item.product_name,
-        price: item.price,
+        name: item.product_name || cart[0]?.name + ' (EcoBridge)',
+        price: ecoPurchasePrice,
         originalPrice: cart[0]?.price || 4000,
         icon: cart[0]?.icon || '♻️',
         freeDelivery: true,
         prime: true,
         co2Saved: item.carbon_saved_estimate,
-        greenCoins: 50
+        greenCoins: Math.min(200, Math.max(30, Math.round(ecoPurchasePrice * 0.05)))
       } as any]);
     }
     setAcceptedEco(true);
@@ -119,8 +120,10 @@ export function ViewC({
   const dynamicCoins = cart.reduce((sum, item) => sum + (item.greenCoins || 0), 0);
   const isEco = acceptedEco;
   const matchedItem = interceptData?.item;
-  const ecoPrice = matchedItem ? `₹${matchedItem.price.toLocaleString('en-IN')}` : '';
-  const discountPercent = interceptData?.eco_discount_percent ?? 37;
+  // Show eco price as 50% of the cart item's actual price (not the Lambda's estimate)
+  const cartPrice = cart[0]?.price || 4000;
+  const ecoPrice = matchedItem ? `₹${Math.round(cartPrice * 0.50).toLocaleString('en-IN')}` : '';
+  const discountPercent = 50; // Fixed 50% discount for EcoBridge items
   const isEmpty = (hadItems && cart.length === 0) || mockDeleted;
 
   // ─── SUCCESS ────────────────────────────────────────────────────────────────
