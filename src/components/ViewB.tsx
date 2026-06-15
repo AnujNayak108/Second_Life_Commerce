@@ -123,6 +123,44 @@ export function ViewB({ orders = [], onEarnCoins, onEcoBridgeReturn }: { orders?
       }
       setAnalysisProgress(4);
 
+      // ═══ PRODUCT IDENTITY CHECK — reject if scan doesn't match the order ═══
+      const PRODUCT_CATEGORY_MAP: Record<string, string[]> = {
+        'monitor': ['monitor', 'screen', 'display', 'television', 'tv'],
+        'phone': ['phone', 'mobile phone', 'smartphone', 'cell phone'],
+        'headphones': ['headphones', 'headset', 'earphone', 'audio equipment'],
+        'keyboard': ['keyboard', 'computer keyboard'],
+        'mouse': ['mouse', 'computer mouse', 'peripheral'],
+        'watch': ['watch', 'wristwatch', 'smartwatch'],
+        'speaker': ['speaker', 'bluetooth speaker', 'audio'],
+        'laptop': ['laptop', 'computer', 'notebook'],
+        'shoes': ['shoe', 'footwear', 'sneaker', 'running shoe'],
+      };
+
+      const allLabels = results.flatMap(r => r.health_card?.detected_labels || []);
+      const detectedLabelNames = allLabels.map((l: string) => l.split(' (')[0].toLowerCase());
+      const orderName = (selectedOrder?.name || '').toLowerCase();
+      
+      let expectedCategory = '';
+      for (const [cat, keywords] of Object.entries(PRODUCT_CATEGORY_MAP)) {
+        if (keywords.some(kw => orderName.includes(kw)) || orderName.includes(cat)) {
+          expectedCategory = cat; break;
+        }
+      }
+
+      if (expectedCategory) {
+        const expectedLabels = PRODUCT_CATEGORY_MAP[expectedCategory] || [];
+        const hasMatch = detectedLabelNames.some((dl: string) => expectedLabels.some(el => dl.includes(el) || el.includes(dl)));
+        let detectedCategory = '';
+        for (const [cat, keywords] of Object.entries(PRODUCT_CATEGORY_MAP)) {
+          if (cat === expectedCategory) continue;
+          if (detectedLabelNames.filter((dl: string) => keywords.some(kw => dl.includes(kw))).length >= 2) { detectedCategory = cat; break; }
+        }
+        if (!hasMatch && detectedCategory) {
+          setViewState('review');
+          return; // Silently fail back to review — user can retake
+        }
+      }
+
       // Compute health score from results
       const conditions = results.map(r => r.health_card?.condition || 'Good');
       const avgConfidence = Math.round(results.reduce((s, r) => s + (r.health_card?.confidence || 80), 0) / Math.max(results.length, 1));

@@ -240,6 +240,58 @@ export function ViewA({ onEarnCoins, orders = [], soldItems = new Set(), onItemS
       // ═══ REAL MULTI-IMAGE FUSION — aggregate across all 4 angles ═══
       const allLabels = perImageResults.flatMap(r => r.labels);
       const uniqueLabels = [...new Set(allLabels)].slice(0, 12);
+
+      // ═══ PRODUCT IDENTITY VERIFICATION — reject if scanned item doesn't match order ═══
+      const PRODUCT_CATEGORY_MAP: Record<string, string[]> = {
+        'monitor': ['monitor', 'screen', 'display', 'television', 'tv', 'computer monitor'],
+        'phone': ['phone', 'mobile phone', 'smartphone', 'cell phone', 'mobile'],
+        'headphones': ['headphones', 'headset', 'earphone', 'audio equipment', 'earbuds'],
+        'keyboard': ['keyboard', 'computer keyboard', 'key'],
+        'mouse': ['mouse', 'computer mouse', 'peripheral'],
+        'watch': ['watch', 'wristwatch', 'smartwatch', 'wearable'],
+        'speaker': ['speaker', 'bluetooth speaker', 'audio', 'loudspeaker'],
+        'laptop': ['laptop', 'computer', 'notebook', 'portable computer'],
+        'tablet': ['tablet', 'tablet computer', 'ipad'],
+        'camera': ['camera', 'digital camera', 'webcam', 'lens'],
+        'shoes': ['shoe', 'footwear', 'sneaker', 'running shoe', 'boot'],
+        'book': ['book', 'paper', 'publication', 'novel'],
+        'power bank': ['battery', 'power bank', 'charger', 'electronics'],
+      };
+
+      // Detect what category the scanned item belongs to
+      const detectedLabelNames = allLabels.map(l => l.split(' (')[0].toLowerCase());
+      
+      // Determine what category the ORDER says it should be
+      const orderName = (scanningOrder?.name || '').toLowerCase();
+      let expectedCategory = '';
+      for (const [cat, keywords] of Object.entries(PRODUCT_CATEGORY_MAP)) {
+        if (keywords.some(kw => orderName.includes(kw)) || orderName.includes(cat)) {
+          expectedCategory = cat;
+          break;
+        }
+      }
+
+      // If we know what category is expected, verify the scan matches
+      if (expectedCategory) {
+        const expectedLabels = PRODUCT_CATEGORY_MAP[expectedCategory] || [];
+        const hasMatchingLabel = detectedLabelNames.some(dl => 
+          expectedLabels.some(el => dl.includes(el) || el.includes(dl))
+        );
+
+        // Check if scan shows a DIFFERENT specific product category
+        let detectedCategory = '';
+        for (const [cat, keywords] of Object.entries(PRODUCT_CATEGORY_MAP)) {
+          if (cat === expectedCategory) continue;
+          const matchCount = detectedLabelNames.filter(dl => keywords.some(kw => dl.includes(kw) || kw.includes(dl))).length;
+          if (matchCount >= 2) { detectedCategory = cat; break; }
+        }
+
+        if (!hasMatchingLabel && detectedCategory) {
+          setError(`⚠️ Product mismatch! You're trying to list a "${expectedCategory}" but the AI detected a "${detectedCategory}". Please scan the correct item (${scanningOrder?.name}).`);
+          setStep('review_captures');
+          return;
+        }
+      }
       
       // Cross-image agreement scoring
       const conditions = perImageResults.map(r => r.condition);
