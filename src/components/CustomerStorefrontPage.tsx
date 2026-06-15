@@ -4,6 +4,7 @@ import {
   CheckCircle, ArrowRight, Flame, ShoppingBag,
   ChevronDown
 } from 'lucide-react';
+import { CustomerProductDetailPage } from './CustomerProductDetailPage';
 
 export interface Product {
   id: string;
@@ -68,7 +69,9 @@ export function CustomerStorefrontPage({
   setPersona,
   onOrdersClick
 }: CustomerStorefrontPageProps) {
-  const [toast, setToast] = useState<string | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartItem, setCartItem] = useState<Product | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   const handleAdd = (product: Product) => {
     onAddToCart({
@@ -86,8 +89,9 @@ export function CustomerStorefrontPage({
       freeDelivery: product.freeDelivery,
       prime: product.prime
     });
-    setToast(`"${product.name.slice(0, 30)}…" added to cart!`);
-    setTimeout(() => setToast(null), 3000);
+    setCartItem(product);
+    setCartOpen(true);
+    setTimeout(() => setCartOpen(false), 5000);
   };
 
   const handleBuyNow = (product: Product) => {
@@ -108,9 +112,57 @@ export function CustomerStorefrontPage({
     });
     onCartClick();
   };
+  const CartSideDrawer = (
+    <>
+      {cartOpen && cartItem && (
+        <div className="fixed top-[108px] right-0 bottom-0 w-80 bg-white shadow-[-5px_0_15px_rgba(0,0,0,0.1)] z-50 border-l border-[#D5D9D9] p-4 animate-in slide-in-from-right">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-[#0F1111] flex items-center gap-2"><CheckCircle className="w-5 h-5 text-[#007600]" /> Added to Cart</h2>
+            <button onClick={() => setCartOpen(false)} className="text-[#565959] hover:text-[#0F1111]">✕</button>
+          </div>
+          <div className="flex gap-3 mb-4">
+            <div className="w-16 h-16 bg-[#F7F8F8] border border-[#D5D9D9] rounded flex items-center justify-center text-3xl shrink-0">{cartItem.icon}</div>
+            <div>
+              <div className="text-sm text-[#0F1111] font-medium line-clamp-2 leading-tight mb-1">{cartItem.name}</div>
+              <div className="text-[#B12704] font-bold">₹{cartItem.price.toLocaleString('en-IN')}</div>
+            </div>
+          </div>
+          <button 
+            onClick={() => { setCartOpen(false); onCartClick(); }} 
+            className="w-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] text-[#0F1111] font-medium py-2 rounded-full mb-2">
+            Cart & Checkout
+          </button>
+          <button onClick={() => setCartOpen(false)} className="w-full border border-[#D5D9D9] hover:bg-[#F7F8F8] text-[#0F1111] font-medium py-2 rounded-full">Continue Shopping</button>
+        </div>
+      )}
+    </>
+  );
+
+  if (selectedProductId) {
+    const allProducts = [...FEATURED_PRODUCTS, ...TODAY_DEALS.map(d => ({
+      id: d.id, name: d.name, price: d.dealPrice, originalPrice: d.originalPrice,
+      rating: 4.5, reviews: 100, icon: d.icon, freeDelivery: true, prime: true
+    }))];
+    const product = allProducts.find(p => p.id === selectedProductId);
+    if (product) {
+      return (
+        <div className="min-h-screen bg-[#EAEDED] font-sans">
+          <CustomerProductDetailPage 
+            product={product} 
+            onBack={() => setSelectedProductId(null)} 
+            onAddToCart={(p) => handleAdd(p)} 
+            onBuyNow={(p) => handleBuyNow(p)}
+          />
+          {CartSideDrawer}
+        </div>
+      );
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#EAEDED] text-[#0F1111] font-sans">
+      
+      {CartSideDrawer}
 
       {/* ═══ CUSTOMER NAVBAR — #131921 ═══════════════════════════════════════════ */}
       <header className="bg-[#131921] sticky top-0 z-50">
@@ -119,7 +171,10 @@ export function CustomerStorefrontPage({
           {/* Left: SecondLife AI Logo */}
           <div
             className="flex flex-col items-start mr-2 shrink-0 border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer"
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            onClick={() => {
+              setSelectedProductId(null);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           >
             <div className="flex items-baseline gap-0.5">
               <span className="text-white font-bold text-xl leading-tight tracking-tight">SecondLife</span>
@@ -527,14 +582,6 @@ export function CustomerStorefrontPage({
           </div>
         </div>
       </footer>
-
-      {/* ─── TOAST NOTIFICATION ─── */}
-      {toast && (
-        <div className="fixed bottom-6 right-4 z-50 bg-[#131921] text-white px-4 py-3.5 rounded shadow-2xl flex items-center gap-2 max-w-sm border border-gray-800 animate-slide-in">
-          <CheckCircle className="w-5 h-5 text-[#FF9900] shrink-0" />
-          <span className="text-xs font-semibold">{toast}</span>
-        </div>
-      )}
 
     </div>
   );

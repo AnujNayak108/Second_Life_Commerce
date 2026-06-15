@@ -74,7 +74,7 @@ function StarRating({ rating, reviews }: { rating: number; reviews: number }) {
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
 
-function ProductCard({ product, onAdd, onClick }: { product: Product; onAdd: (id: string) => void; onClick: (id: string) => void }) {
+function ProductCard({ product, onAdd, onBuyNow, onClick }: { product: Product; onAdd: (id: string) => void; onBuyNow: (id: string) => void; onClick: (id: string) => void }) {
   const [added, setAdded] = useState(false);
   const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
 
@@ -127,7 +127,7 @@ function ProductCard({ product, onAdd, onClick }: { product: Product; onAdd: (id
           className={`mt-3 w-full py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 ${added ? 'bg-[#007600] text-white' : 'bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] border border-[#FCD200]'}`}>
           {added ? <span className="flex items-center justify-center gap-1"><CheckCircle className="w-4 h-4" />Added</span> : <span className="flex items-center justify-center gap-1"><ShoppingCart className="w-4 h-4" />Add to Cart</span>}
         </button>
-        <button onClick={(e) => e.stopPropagation()} className="mt-1.5 w-full py-1.5 rounded-full text-sm font-medium bg-[#FFA41C] hover:bg-[#FA8900] text-[#0F1111] border border-[#FF8F00]">Buy Now</button>
+        <button onClick={(e) => { e.stopPropagation(); onBuyNow(product.id); }} className="mt-1.5 w-full py-1.5 rounded-full text-sm font-medium bg-[#FFA41C] hover:bg-[#FA8900] text-[#0F1111] border border-[#FF8F00]">Buy Now</button>
       </div>
     </div>
   );
@@ -135,7 +135,7 @@ function ProductCard({ product, onAdd, onClick }: { product: Product; onAdd: (id
 
 // ─── Product Detail Page (PDP) ────────────────────────────────────────────────
 
-function ProductDetailPage({ product, onBack, onAdd }: { product: Product; onBack: () => void; onAdd: (id: string) => void }) {
+function ProductDetailPage({ product, onBack, onAdd, onBuyNow }: { product: Product; onBack: () => void; onAdd: (id: string) => void; onBuyNow: (id: string) => void; }) {
   const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
   
   return (
@@ -245,7 +245,7 @@ function ProductDetailPage({ product, onBack, onAdd }: { product: Product; onBac
             <button onClick={() => onAdd(product.id)} className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] font-medium py-2 rounded-full text-sm border border-[#FCD200] mb-2 transition-colors">
               Add to Cart
             </button>
-            <button className="w-full bg-[#FFA41C] hover:bg-[#FA8900] text-[#0F1111] font-medium py-2 rounded-full text-sm border border-[#FF8F00] transition-colors mb-3">
+            <button onClick={() => onBuyNow(product.id)} className="w-full bg-[#FFA41C] hover:bg-[#FA8900] text-[#0F1111] font-medium py-2 rounded-full text-sm border border-[#FF8F00] transition-colors mb-3">
               Buy Now
             </button>
 
@@ -278,6 +278,14 @@ export function StorefrontPage({ onGoToCart, onAddToCart, approvedP2PItems = [] 
     }
   };
 
+  const handleBuyNow = (id: string) => {
+    const p = [...RENEWED_PRODUCTS, ...P2P_PRODUCTS, ...approvedP2PItems].find((x) => x.id === id);
+    if (p) { 
+      if (onAddToCart) onAddToCart(p);
+      if (onGoToCart) onGoToCart();
+    }
+  };
+
   const renewed = RENEWED_PRODUCTS.filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const p2p = [...approvedP2PItems, ...P2P_PRODUCTS].filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -287,7 +295,7 @@ export function StorefrontPage({ onGoToCart, onAddToCart, approvedP2PItems = [] 
     if (p) {
       return (
         <>
-          <ProductDetailPage product={p} onBack={() => setSelectedProductId(null)} onAdd={handleAdd} />
+          <ProductDetailPage product={p} onBack={() => setSelectedProductId(null)} onAdd={handleAdd} onBuyNow={handleBuyNow} />
           {/* Cart Side Drawer */}
           {cartOpen && cartItem && (
             <div className="fixed top-[108px] right-0 bottom-0 w-80 bg-white shadow-[-5px_0_15px_rgba(0,0,0,0.1)] z-50 border-l border-[#D5D9D9] p-4 animate-in slide-in-from-right">
@@ -398,8 +406,11 @@ export function StorefrontPage({ onGoToCart, onAddToCart, approvedP2PItems = [] 
               </div>
               <a href="#" className="text-[#007185] hover:text-[#C7511F] text-sm hover:underline flex items-center gap-1">See all <ArrowRight className="w-3.5 h-3.5" /></a>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px">
-              {renewed.map((p) => <ProductCard key={p.id} product={p} onAdd={handleAdd} onClick={setSelectedProductId} />)}
+            {/* Product Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {renewed.map((product) => (
+                <ProductCard key={product.id} product={product} onAdd={handleAdd} onBuyNow={handleBuyNow} onClick={setSelectedProductId} />
+              ))}
             </div>
           </section>
         )}
@@ -417,8 +428,11 @@ export function StorefrontPage({ onGoToCart, onAddToCart, approvedP2PItems = [] 
               </div>
               <a href="#" className="text-[#007185] hover:text-[#C7511F] text-sm hover:underline flex items-center gap-1">See all <ArrowRight className="w-3.5 h-3.5" /></a>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px">
-              {p2p.map((p) => <ProductCard key={p.id} product={p} onAdd={handleAdd} onClick={setSelectedProductId} />)}
+            {/* Product Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {p2p.map((product) => (
+                <ProductCard key={product.id} product={product} onAdd={handleAdd} onBuyNow={handleBuyNow} onClick={setSelectedProductId} />
+              ))}
             </div>
           </section>
         )}

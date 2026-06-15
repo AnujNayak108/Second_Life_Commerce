@@ -132,10 +132,10 @@ function App() {
     // Propagate to ALL personas with unique IDs
     setOrders(prev => ({
       ...prev,
-      [persona]: [...newOrders, ...prev[persona]],
+      [persona]: [...newOrders, ...(prev[persona] || [])],
       // Items appear in Seller's and Returner's orders (simulates time passing)
-      rahul: [...newOrders.map(o => ({ ...o, id: `${o.id}_seller`, status: 'Delivered — EcoBridge Eligible' })), ...prev.rahul],
-      priya: [...newOrders.map(o => ({ ...o, id: `${o.id}_returner`, status: 'Delivered — Returnable' })), ...prev.priya],
+      rahul: [...newOrders.map(o => ({ ...o, id: `${o.id}_seller`, status: 'Delivered — EcoBridge Eligible' })), ...(prev.rahul || [])],
+      priya: [...newOrders.map(o => ({ ...o, id: `${o.id}_returner`, status: 'Delivered — Returnable' })), ...(prev.priya || [])],
     }));
     setCart([]);
   };

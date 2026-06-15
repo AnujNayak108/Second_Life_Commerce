@@ -258,7 +258,7 @@ export function AdminDashboard({ onExit, liveOrders = {}, soldItems = new Set(),
             <Menu className="w-5 h-5" />
           </button>
           
-          <div className="flex items-baseline gap-1.5 select-none cursor-pointer" onClick={() => handleSidebarNavigate('dashboard')}>
+          <div className="flex items-baseline gap-1.5 select-none cursor-pointer border border-transparent hover:border-gray-700 px-2 py-1 rounded transition-colors" onClick={onExit}>
             <span className="font-black text-xl tracking-tight">amazon</span>
             <span className="text-[#FF9900] text-[10px] font-black tracking-widest uppercase border border-[#FF9900] px-1 rounded-sm">SecondLife AI</span>
             <span className="text-[9px] text-gray-400 font-medium">Ops Console</span>
