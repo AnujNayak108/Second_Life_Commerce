@@ -90,7 +90,7 @@ export function ViewA({ onEarnCoins, orders = [], soldItems = new Set(), onItemS
   onEarnCoins?: (amount: number) => void;
   orders?: OrderItem[];
   soldItems?: Set<string>;
-  onItemSold?: (orderId: string) => void;
+  onItemSold?: (orderId: string, images?: Record<string, string>, gradeData?: any) => void;
 }) {
   const [step, setStep] = useState<Step>('orders');
   const [gradeResult, setGradeResult] = useState<GradeResultV2 | null>(null);
@@ -352,7 +352,14 @@ export function ViewA({ onEarnCoins, orders = [], soldItems = new Set(), onItemS
   const handleSubmitVerification = () => {
     const adjusted = computeFinalCondition(gradeResult?.health_card.condition || 'Good', internalDamage);
     setFinalCondition(adjusted);
-    if (onItemSold && scanningOrderId) onItemSold(scanningOrderId);
+    if (onItemSold && scanningOrderId) {
+      onItemSold(scanningOrderId, captures, {
+        condition: adjusted,
+        healthScore: gradeResult?.health_card?.health_score?.overall,
+        labels: gradeResult?.health_card?.detected_labels,
+        confidence: gradeResult?.health_card?.confidence,
+      });
+    }
     setStep('routed');
   };
 

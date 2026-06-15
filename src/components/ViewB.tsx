@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Package, Leaf, CheckCircle, Recycle, Truck, X, ArrowRight } from 'lucide-react';
+import { Package, Leaf, CheckCircle, Recycle, Truck, X, ArrowRight, ClipboardList } from 'lucide-react';
 
 export interface OrderItem {
   id: string;
@@ -15,35 +15,63 @@ export interface OrderItem {
   greenCoins?: number;
 }
 
+const RETURN_REASONS = [
+  { id: 'damaged', label: 'Product damaged or defective', icon: '🔨' },
+  { id: 'wrong_item', label: 'Wrong item received', icon: '❌' },
+  { id: 'not_as_described', label: 'Product not as described', icon: '📝' },
+  { id: 'size_fit', label: 'Size/Fit issue', icon: '📏' },
+  { id: 'changed_mind', label: 'Changed my mind', icon: '🔄' },
+  { id: 'better_alternative', label: 'Found a better alternative', icon: '🔍' },
+  { id: 'late_delivery', label: 'Delivery took too long', icon: '🐢' },
+  { id: 'no_longer_needed', label: 'No longer needed', icon: '🚫' },
+  { id: 'other', label: 'Other', icon: '💬' },
+];
+
 /**
- * ViewB — Returner/Orders View (Priya)
- * Shows past orders with return option. On return click, shows EcoBridge intercept popup.
+ * ViewB — Returner/Orders View
+ * Flow: Orders → Return Reason Form → EcoBridge/Normal Choice
  */
-export function ViewB({ orders = [], onEarnCoins }: { orders?: OrderItem[]; onEarnCoins?: (amount: number) => void }) {
+export function ViewB({ orders = [], onEarnCoins, onEcoBridgeReturn }: { orders?: OrderItem[]; onEarnCoins?: (amount: number) => void; onEcoBridgeReturn?: (order: OrderItem) => void }) {
+  const [showReasonForm, setShowReasonForm] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
-  const [returnedItems, setReturnedItems] = useState<Record<string, 'ecobridge' | 'normal'>>({});
+  const [selectedReason, setSelectedReason] = useState<string>('');
+  const [otherReason, setOtherReason] = useState('');
+  const [returnedItems, setReturnedItems] = useState<Record<string, { type: 'ecobridge' | 'normal'; reason: string }>>({});
 
   const handleReturnClick = (order: OrderItem) => {
     setSelectedOrder(order);
+    setSelectedReason('');
+    setOtherReason('');
+    setShowReasonForm(true);
+  };
+
+  const handleReasonSubmit = () => {
+    // After reason is collected, show the EcoBridge/Normal choice popup
+    setShowReasonForm(false);
     setShowPopup(true);
   };
 
   const handleEcoBridgeReturn = () => {
     if (selectedOrder) {
-      setReturnedItems(prev => ({ ...prev, [selectedOrder.id]: 'ecobridge' }));
+      const reason = selectedReason === 'other' ? otherReason : RETURN_REASONS.find(r => r.id === selectedReason)?.label || selectedReason;
+      setReturnedItems(prev => ({ ...prev, [selectedOrder.id]: { type: 'ecobridge', reason } }));
       if (onEarnCoins) onEarnCoins(50);
+      if (onEcoBridgeReturn) onEcoBridgeReturn(selectedOrder);
     }
     setShowPopup(false);
   };
 
   const handleNormalReturn = () => {
     if (selectedOrder) {
-      setReturnedItems(prev => ({ ...prev, [selectedOrder.id]: 'normal' }));
+      const reason = selectedReason === 'other' ? otherReason : RETURN_REASONS.find(r => r.id === selectedReason)?.label || selectedReason;
+      setReturnedItems(prev => ({ ...prev, [selectedOrder.id]: { type: 'normal', reason } }));
       if (onEarnCoins) onEarnCoins(20);
     }
     setShowPopup(false);
   };
+
+  const isReasonValid = selectedReason && (selectedReason !== 'other' || otherReason.trim().length > 0);
 
   return (
     <div className="max-w-4xl mx-auto p-4 mt-2 relative">
@@ -75,13 +103,16 @@ export function ViewB({ orders = [], onEarnCoins }: { orders?: OrderItem[]; onEa
                     </div>
                     <div>
                       <span className="text-[#007185] font-medium text-sm">{order.name}</span>
-                      <p className={`text-xs font-medium mt-0.5 ${returnStatus ? (returnStatus === 'ecobridge' ? 'text-[#007600]' : 'text-[#565959]') : 'text-[#007600]'}`}>
-                        {returnStatus === 'ecobridge' 
+                      <p className={`text-xs font-medium mt-0.5 ${returnStatus ? (returnStatus.type === 'ecobridge' ? 'text-[#007600]' : 'text-[#565959]') : 'text-[#007600]'}`}>
+                        {returnStatus?.type === 'ecobridge' 
                           ? '✓ Listed on EcoBridge — Earning Green Coins!' 
-                          : returnStatus === 'normal' 
+                          : returnStatus?.type === 'normal' 
                             ? '↩ Standard return initiated' 
                             : order.status}
                       </p>
+                      {returnStatus && (
+                        <p className="text-[10px] text-[#565959] mt-0.5">Reason: {returnStatus.reason}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 w-full md:w-auto">
@@ -97,12 +128,12 @@ export function ViewB({ orders = [], onEarnCoins }: { orders?: OrderItem[]; onEa
                         </button>
                       </>
                     )}
-                    {returnStatus === 'ecobridge' && (
+                    {returnStatus?.type === 'ecobridge' && (
                       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E7F4E4] border border-[#C3E6C0] rounded-full text-xs text-[#007600] font-bold">
                         <Leaf className="w-3.5 h-3.5" /> On EcoBridge P2P
                       </div>
                     )}
-                    {returnStatus === 'normal' && (
+                    {returnStatus?.type === 'normal' && (
                       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F2F2] border border-[#D5D9D9] rounded-full text-xs text-[#565959] font-medium">
                         <CheckCircle className="w-3.5 h-3.5" /> Return processing
                       </div>
@@ -115,7 +146,68 @@ export function ViewB({ orders = [], onEarnCoins }: { orders?: OrderItem[]; onEa
         </div>
       )}
 
-      {/* ═══ EcoBridge Intercept Popup ═══ */}
+      {/* ═══ RETURN REASON FORM (shown first, before EcoBridge choice) ═══ */}
+      {showReasonForm && selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="bg-white border border-[#D5D9D9] rounded-lg shadow-2xl max-w-md w-full relative z-10 overflow-hidden">
+            <button onClick={() => setShowReasonForm(false)} className="absolute top-3 right-3 text-[#565959] hover:text-[#0F1111] z-20">
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header */}
+            <div className="bg-[#F0F2F2] border-b border-[#D5D9D9] p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <ClipboardList className="w-5 h-5 text-[#FF9900]" />
+                <h2 className="text-base font-bold text-[#0F1111]">Why are you returning this item?</h2>
+              </div>
+              <p className="text-xs text-[#565959]">{selectedOrder.name}</p>
+            </div>
+
+            {/* Reason Options */}
+            <div className="p-4 max-h-[50vh] overflow-y-auto space-y-2">
+              {RETURN_REASONS.map(reason => (
+                <button
+                  key={reason.id}
+                  onClick={() => setSelectedReason(reason.id)}
+                  className={`w-full text-left p-3 rounded-lg border flex items-center gap-3 transition-all ${
+                    selectedReason === reason.id 
+                      ? 'border-[#FF9900] bg-[#FFFBF0] shadow-sm' 
+                      : 'border-[#D5D9D9] hover:border-[#FF9900]/50 hover:bg-[#FAFAFA]'
+                  }`}
+                >
+                  <span className="text-lg">{reason.icon}</span>
+                  <span className="text-sm font-medium text-[#0F1111]">{reason.label}</span>
+                  {selectedReason === reason.id && <CheckCircle className="w-4 h-4 text-[#FF9900] ml-auto" />}
+                </button>
+              ))}
+
+              {/* "Other" text input */}
+              {selectedReason === 'other' && (
+                <textarea
+                  value={otherReason}
+                  onChange={(e) => setOtherReason(e.target.value)}
+                  placeholder="Please describe your reason..."
+                  className="w-full mt-2 border border-[#D5D9D9] rounded-lg p-3 text-sm outline-none focus:border-[#FF9900] resize-none h-20"
+                />
+              )}
+            </div>
+
+            {/* Submit */}
+            <div className="p-4 border-t border-[#D5D9D9]">
+              <button
+                onClick={handleReasonSubmit}
+                disabled={!isReasonValid}
+                className="w-full bg-[#FFD814] hover:bg-[#F7CA00] disabled:bg-[#F0F2F2] disabled:text-[#999] text-[#0F1111] font-bold py-3 rounded-full border border-[#FCD200] disabled:border-[#D5D9D9] text-sm flex items-center justify-center gap-2"
+              >
+                Continue <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ EcoBridge / Normal Return Choice Popup ═══ */}
       {showPopup && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
@@ -144,7 +236,7 @@ export function ViewB({ orders = [], onEarnCoins }: { orders?: OrderItem[]; onEa
                 </div>
                 <div>
                   <div className="text-sm font-medium text-[#0F1111] line-clamp-1">{selectedOrder.name}</div>
-                  <div className="text-xs text-[#565959]">₹{selectedOrder.price.toLocaleString('en-IN')}</div>
+                  <div className="text-xs text-[#565959]">₹{selectedOrder.price.toLocaleString('en-IN')} • Reason: {selectedReason === 'other' ? otherReason : RETURN_REASONS.find(r => r.id === selectedReason)?.label}</div>
                 </div>
               </div>
 
@@ -163,8 +255,8 @@ export function ViewB({ orders = [], onEarnCoins }: { orders?: OrderItem[]; onEa
               </div>
 
               <p className="text-xs text-[#565959] leading-relaxed">
-                A neighbor in your area might need this exact item. By listing on EcoBridge, you earn <span className="font-bold text-[#007600]">2.5x more Green Coins</span>, 
-                save <span className="font-bold">8.2kg CO₂</span>, and give your product a second life — all without long-haul shipping!
+                List on EcoBridge to earn <span className="font-bold text-[#007600]">2.5x more Green Coins</span>, 
+                save <span className="font-bold">8.2kg CO₂</span>, and give your product a second life locally!
               </p>
 
               {/* CTAs */}

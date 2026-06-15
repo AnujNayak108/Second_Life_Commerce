@@ -10,23 +10,44 @@ import { X } from 'lucide-react';
 
 type ActiveFlow = null | 'seller' | 'returner' | 'buyer';
 
+// ─── localStorage helpers ──────────────────────────────────────────────────
+function loadState<T>(key: string, fallback: T): T {
+  try {
+    const stored = localStorage.getItem(`ecobridge_${key}`);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return fallback;
+}
+
+function saveState(key: string, value: any) {
+  try {
+    localStorage.setItem(`ecobridge_${key}`, JSON.stringify(value));
+  } catch {}
+}
+
 function App() {
   const [persona, setPersona] = useState<Persona>('storefront');
   const [activeFlow, setActiveFlow] = useState<ActiveFlow>(null);
   const [homeKey, setHomeKey] = useState(0);
   const [cart, setCart] = useState<Product[]>([]);
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
-  const [greenCoins, setGreenCoins] = useState(150);
+  const [greenCoins, setGreenCoins] = useState(() => loadState('greenCoins', 150));
   const [coinAnimating, setCoinAnimating] = useState(false);
-  const [soldItems, setSoldItems] = useState<Set<string>>(new Set());
-  const [approvedP2PItems, setApprovedP2PItems] = useState<any[]>([]);
-  const [orders, setOrders] = useState<Record<Persona, any[]>>({
+  const [soldItems, setSoldItems] = useState<Set<string>>(() => new Set(loadState<string[]>('soldItems', [])));
+  const [approvedP2PItems, setApprovedP2PItems] = useState<any[]>(() => loadState('approvedP2PItems', []));
+  const [orders, setOrders] = useState<Record<Persona, any[]>>(() => loadState('orders', {
     storefront: [],
     amit: [],
     priya: [],
     rahul: [],
     admin: []
-  });
+  }));
+
+  // Persist state to localStorage whenever it changes
+  useEffect(() => { saveState('greenCoins', greenCoins); }, [greenCoins]);
+  useEffect(() => { saveState('soldItems', [...soldItems]); }, [soldItems]);
+  useEffect(() => { saveState('approvedP2PItems', approvedP2PItems); }, [approvedP2PItems]);
+  useEffect(() => { saveState('orders', orders); }, [orders]);
 
   // Sync state with popstate event (e.g. browser back/forward buttons)
   useEffect(() => {
@@ -88,9 +109,38 @@ function App() {
     setTimeout(() => setCoinAnimating(false), 1500);
   };
 
-  // When seller lists an item via EcoBridge, mark it as sold (hides the trade-in button)
-  const handleItemSold = (orderId: string) => {
+  // When seller lists an item via EcoBridge, mark it as sold and store images
+  const handleItemSold = (orderId: string, images?: Record<string, string>, gradeData?: any) => {
     setSoldItems(prev => new Set([...prev, orderId]));
+    
+    // Find the order details to build the P2P listing
+    const allOrders = Object.values(orders).flat();
+    const order = allOrders.find(o => o.id === orderId);
+    if (order) {
+      const newP2PItem = {
+        id: `p2p_${orderId}_${Date.now()}`,
+        name: order.name + ' (AI Verified)',
+        price: Math.round((order.price || 4000) * 0.65),
+        originalPrice: order.price || 4000,
+        grade: gradeData?.condition === 'Like New' ? 'A' : gradeData?.condition === 'Good' ? 'B' : 'C',
+        rating: 4.7,
+        reviews: 1,
+        type: 'p2p' as const,
+        seller: 'Rahul M.',
+        aiScore: gradeData?.healthScore || 85,
+        greenCoins: gradeData?.condition === 'Like New' ? 180 : 120,
+        co2Saved: '8.2 kg',
+        icon: order.icon || '♻️',
+        freeDelivery: true,
+        prime: true,
+        // Store the captured images for display
+        galleryImages: images || {},
+        condition: gradeData?.condition || 'Good',
+        labels: gradeData?.labels || [],
+        confidence: gradeData?.confidence || 85,
+      };
+      setApprovedP2PItems(prev => [newP2PItem, ...prev]);
+    }
   };
 
   // When admin approves an item, add to P2P listings
@@ -125,13 +175,13 @@ function App() {
       };
     });
 
-    // Propagate to ALL personas with unique IDs
+    // Propagate to Seller (Rahul) only — simulates "time passing" for circular economy demo
+    // Priya only sees her own orders (no cross-user leakage)
     setOrders(prev => ({
       ...prev,
       [persona]: [...newOrders, ...prev[persona]],
-      // Items appear in Seller's and Returner's orders (simulates time passing)
-      rahul: [...newOrders.map(o => ({ ...o, id: `${o.id}_seller`, status: 'Delivered — EcoBridge Eligible' })), ...prev.rahul],
-      priya: [...newOrders.map(o => ({ ...o, id: `${o.id}_returner`, status: 'Delivered — Returnable' })), ...prev.priya],
+      // Only Rahul gets the items (he's the seller who can scan and resell)
+      rahul: persona !== 'rahul' ? [...newOrders.map(o => ({ ...o, id: `${o.id}_seller`, status: 'Delivered — EcoBridge Eligible' })), ...prev.rahul] : [...newOrders, ...prev.rahul],
     }));
     setCart([]);
   };
@@ -198,7 +248,10 @@ function App() {
           </div>
           {/* Flow content */}
           {activeFlow === 'seller' && <ViewA onEarnCoins={handleEarnCoins} orders={orders.rahul} soldItems={soldItems} onItemSold={handleItemSold} />}
-          {activeFlow === 'returner' && <ViewB orders={orders[persona]} onEarnCoins={handleEarnCoins} />}
+          {activeFlow === 'returner' && <ViewB orders={orders[persona]} onEarnCoins={handleEarnCoins} onEcoBridgeReturn={(order) => {
+            // EcoBridge return: mark as sold so it appears in admin dashboard
+            setSoldItems(prev => new Set([...prev, order.id]));
+          }} />}
           {activeFlow === 'buyer' && (
             <ViewC 
               cart={cart} 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { P2PProductDetail } from './P2PProductDetail';
 import {
   ShoppingCart,
   Leaf,
@@ -32,6 +33,10 @@ export interface Product {
   icon: string;
   freeDelivery: boolean;
   prime: boolean;
+  galleryImages?: Record<string, string>;
+  condition?: string;
+  labels?: string[];
+  confidence?: number;
 }
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
@@ -85,13 +90,27 @@ function ProductCard({ product, onAdd, onClick }: { product: Product; onAdd: (id
       <div className="absolute top-2 left-2 z-10">
         <span className="bg-[#CC0C39] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm">-{discount}%</span>
       </div>
-      <div className="h-44 bg-white flex items-center justify-center p-4 border-b border-gray-100 relative">
-        <span className="text-7xl group-hover:scale-105 transition-transform">{product.icon}</span>
+      <div className="h-44 bg-white flex items-center justify-center p-4 border-b border-gray-100 relative overflow-hidden">
+        {product.galleryImages?.front ? (
+          <img src={product.galleryImages.front} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+        ) : (
+          <span className="text-7xl group-hover:scale-105 transition-transform">{product.icon}</span>
+        )}
         {product.prime && (
           <span className="absolute top-2 right-2 bg-[#00A8E0] text-white text-[9px] font-black px-1.5 py-0.5 rounded-sm italic">prime</span>
         )}
       </div>
       <div className="p-3 flex flex-col flex-1">
+        {/* AI Score badge for P2P items */}
+        {product.type === 'p2p' && product.aiScore && (
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${product.grade === 'A' ? 'bg-emerald-100 text-emerald-700' : product.grade === 'B' ? 'bg-cyan-100 text-cyan-700' : 'bg-amber-100 text-amber-700'}`}>
+              Grade {product.grade}
+            </span>
+            <span className="text-[9px] text-[#565959] font-medium">AI: {product.aiScore}/100</span>
+            {product.condition && <span className="text-[9px] bg-[#F0F2F2] px-1.5 py-0.5 rounded text-[#565959]">{product.condition}</span>}
+          </div>
+        )}
         <a href="#" className="text-[#0F1111] text-sm leading-snug hover:text-[#C7511F] hover:underline line-clamp-2 mb-1 font-medium">{product.name}</a>
         <StarRating rating={product.rating} reviews={product.reviews} />
         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
@@ -285,6 +304,10 @@ export function StorefrontPage({ onGoToCart, onAddToCart, approvedP2PItems = [] 
   if (selectedProductId) {
     const p = [...RENEWED_PRODUCTS, ...P2P_PRODUCTS, ...approvedP2PItems].find((x) => x.id === selectedProductId);
     if (p) {
+      // Use P2PProductDetail for items with gallery images (scanned products)
+      if (p.galleryImages && Object.keys(p.galleryImages).length > 0) {
+        return <P2PProductDetail productId={p.id} onBack={() => setSelectedProductId(null)} onAddToCart={onAddToCart} productData={p} />;
+      }
       return (
         <>
           <ProductDetailPage product={p} onBack={() => setSelectedProductId(null)} onAdd={handleAdd} />

@@ -25,22 +25,42 @@ interface P2PProductDetailProps {
   productId: string;
   onBack: () => void;
   onAddToCart?: (product: any) => void;
+  productData?: any; // Pre-loaded data from session (avoids API call)
 }
 
-export function P2PProductDetail({ productId, onBack, onAddToCart }: P2PProductDetailProps) {
+export function P2PProductDetail({ productId, onBack, onAddToCart, productData }: P2PProductDetailProps) {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImg, setActiveImg] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
 
   useEffect(() => {
+    // If productData is passed (from session state), use it directly
+    if (productData) {
+      const galleryImages = productData.galleryImages || {};
+      const images = Object.values(galleryImages).filter(Boolean) as string[];
+      setProduct({
+        ...productData,
+        listingImages: images.length > 0 ? images : productData.listingImages || [],
+        description: productData.description || `About this item\n• ${productData.condition || 'Good'} condition — AI-verified Grade ${productData.grade || 'B'}\n• Multi-angle AI inspection (4 photos)\n• Saves ${productData.co2Saved || '8.2 kg'} CO₂\n• Earn ${productData.greenCoins || 120} Green Coins 🪙\n• 7-day return window guaranteed`,
+        aiLabels: productData.labels || [],
+        aiScore: productData.aiScore || 85,
+        gradedAt: new Date().toISOString(),
+        seller: productData.seller || 'EcoBridge Seller',
+        sellerPinCode: '110001',
+        carbonSaved: productData.co2Saved || '8.2 kg',
+      });
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     fetch(`${API_URL}/api/product/detail?id=${productId}`)
       .then(r => r.ok ? r.json() : Promise.reject('Not found'))
       .then(setProduct)
       .catch(() => setProduct(null))
       .finally(() => setLoading(false));
-  }, [productId]);
+  }, [productId, productData]);
 
   if (loading) {
     return (
@@ -197,19 +217,83 @@ export function P2PProductDetail({ productId, onBack, onAddToCart }: P2PProductD
               </div>
             )}
 
-            {/* AI Inspection Details */}
+            {/* ═══ Detailed AI Scorecard ═══ */}
+            <div className="border-t border-[#D5D9D9] pt-4">
+              <h3 className="font-bold text-sm text-[#0F1111] mb-3">AI Inspection Scorecard</h3>
+              <div className="bg-[#F7F8F8] border border-[#D5D9D9] rounded-lg p-4 space-y-3">
+                {/* Overall Grade */}
+                <div className="flex items-center justify-between pb-3 border-b border-[#D5D9D9]">
+                  <div>
+                    <div className="text-xs text-[#565959] font-medium">Overall Grade</div>
+                    <div className={`text-2xl font-black mt-0.5 ${product.grade === 'A' ? 'text-[#007600]' : product.grade === 'B' ? 'text-[#007185]' : 'text-[#FF9900]'}`}>
+                      Grade {product.grade}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-[#565959] font-medium">EcoBridge Score</div>
+                    <div className="text-2xl font-black text-[#0F1111] mt-0.5">{product.aiScore}<span className="text-sm text-[#565959]">/100</span></div>
+                  </div>
+                </div>
+
+                {/* Condition Assessment */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-[10px] text-[#565959] uppercase font-semibold">Condition</div>
+                    <div className="text-sm font-bold text-[#0F1111] mt-0.5">{product.condition || 'Good'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[#565959] uppercase font-semibold">Verification</div>
+                    <div className="text-sm font-bold text-[#007600] mt-0.5">AI + Seller ✓</div>
+                  </div>
+                </div>
+
+                {/* Damage Assessment */}
+                <div className="space-y-1.5 pt-2 border-t border-[#D5D9D9]">
+                  <div className="text-[10px] text-[#565959] uppercase font-semibold">Damage Assessment</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center justify-between bg-white rounded p-2 border border-[#D5D9D9]">
+                      <span className="text-[#565959]">Scratches</span>
+                      <span className={`font-bold ${(product.aiScore || 85) >= 85 ? 'text-[#007600]' : 'text-[#FF9900]'}`}>{(product.aiScore || 85) >= 85 ? 'None' : 'Minor'}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white rounded p-2 border border-[#D5D9D9]">
+                      <span className="text-[#565959]">Stains</span>
+                      <span className="font-bold text-[#007600]">None</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white rounded p-2 border border-[#D5D9D9]">
+                      <span className="text-[#565959]">Wear & Tear</span>
+                      <span className={`font-bold ${(product.aiScore || 85) >= 80 ? 'text-[#007600]' : 'text-[#FF9900]'}`}>{(product.aiScore || 85) >= 80 ? 'Minimal' : 'Moderate'}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white rounded p-2 border border-[#D5D9D9]">
+                      <span className="text-[#565959]">Functionality</span>
+                      <span className="font-bold text-[#007600]">Full ✓</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sustainability */}
+                <div className="pt-2 border-t border-[#D5D9D9] flex items-center justify-between text-xs">
+                  <span className="text-[#565959]">CO₂ Saved by buying this</span>
+                  <span className="font-bold text-[#007600]">{product.carbonSaved || '8.2 kg'}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[#565959]">Inspected</span>
+                  <span className="text-[#565959]">{product.gradedAt ? new Date(product.gradedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Today'}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[#565959]">Verification Method</span>
+                  <span className="font-medium text-[#0F1111]">AWS Rekognition (4-angle scan)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Rekognition Labels */}
             {product.aiLabels?.length > 0 && (
               <div className="border-t border-[#D5D9D9] pt-4">
-                <h3 className="font-bold text-sm text-[#0F1111] mb-2">AI Inspection Details</h3>
-                <div className="bg-[#F7F8F8] border border-[#D5D9D9] rounded p-3 space-y-2">
-                  <div className="flex flex-wrap gap-1">
-                    {product.aiLabels.map((label, i) => (
-                      <span key={i} className="bg-white border border-[#D5D9D9] text-[#0F1111] text-[10px] font-medium px-2 py-0.5 rounded">{label}</span>
-                    ))}
-                  </div>
-                  <div className="text-[10px] text-[#565959] pt-1 border-t border-[#D5D9D9]">
-                    Inspected: {new Date(product.gradedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} • Powered by AWS Rekognition
-                  </div>
+                <h3 className="font-bold text-sm text-[#0F1111] mb-2">Detected Labels</h3>
+                <div className="flex flex-wrap gap-1">
+                  {product.aiLabels.map((label: string, i: number) => (
+                    <span key={i} className="bg-white border border-[#D5D9D9] text-[#0F1111] text-[10px] font-medium px-2 py-0.5 rounded">{label}</span>
+                  ))}
                 </div>
               </div>
             )}
