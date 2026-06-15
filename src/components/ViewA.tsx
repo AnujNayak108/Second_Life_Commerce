@@ -191,23 +191,17 @@ export function ViewA({ onEarnCoins, orders = [], soldItems = new Set(), onItemS
 
           const data = await response.json();
           
-          // ★ HUMAN/PERSON DETECTION — reject if top labels indicate a person, not a product
+          // ★ HUMAN/PERSON DETECTION — only reject if ALL labels are person-related (no product detected)
           const detectedLabels: string[] = data.health_card?.detected_labels || [];
           const PERSON_LABELS = ['person', 'human', 'face', 'adult', 'man', 'woman', 'boy', 'girl', 'child', 'people', 'portrait', 'selfie', 'head', 'skin', 'finger', 'hand', 'body'];
+          const PRODUCT_LABELS = ['electronics', 'device', 'phone', 'computer', 'headphones', 'keyboard', 'mouse', 'watch', 'speaker', 'camera', 'monitor', 'screen', 'shoe', 'book', 'tablet', 'laptop', 'hardware', 'gadget', 'audio'];
           
-          // Check top-3 highest confidence labels (they come sorted from Rekognition)
-          const top3Labels = detectedLabels.slice(0, 3).map(l => l.split(' (')[0].toLowerCase());
-          const topIsPerson = top3Labels.some(l => PERSON_LABELS.some(pl => l.includes(pl)));
-          
-          // Also check if "Person" or "Human" appear anywhere with high confidence
-          const hasHighConfPerson = detectedLabels.some(l => {
-            const name = l.split(' (')[0].toLowerCase();
-            const confMatch = l.match(/\((\d+)%\)/);
-            const conf = confMatch ? parseInt(confMatch[1]) : 0;
-            return PERSON_LABELS.some(pl => name.includes(pl)) && conf >= 70;
-          });
+          const labelNames = detectedLabels.map(l => l.split(' (')[0].toLowerCase());
+          const hasAnyProductLabel = labelNames.some(l => PRODUCT_LABELS.some(pl => l.includes(pl)));
+          const allArePerson = labelNames.length > 0 && labelNames.every(l => PERSON_LABELS.some(pl => l.includes(pl)));
 
-          if (topIsPerson || hasHighConfPerson) {
+          // Only reject if there's NO product label at all AND all labels are person-related
+          if (allArePerson && !hasAnyProductLabel) {
             setError(`⚠️ "${angle.toUpperCase()}" photo shows a person/face, not a product. Please point camera at the actual item.`);
             setStep('review_captures');
             setCaptures(prev => { const next = { ...prev }; delete next[angle]; return next; });
