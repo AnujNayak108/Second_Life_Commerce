@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { 
-  Search, ShoppingCart, Star, Recycle, Leaf, 
-  CheckCircle, ArrowRight, Flame, ShoppingBag, 
+import {
+  Search, ShoppingCart, Star, Recycle, Leaf,
+  CheckCircle, ArrowRight, Flame, ShoppingBag,
   ChevronDown
 } from 'lucide-react';
+import { CustomerProductDetailPage } from './CustomerProductDetailPage';
 
 export interface Product {
   id: string;
@@ -68,8 +69,10 @@ export function CustomerStorefrontPage({
   setPersona,
   onOrdersClick
 }: CustomerStorefrontPageProps) {
-  const [toast, setToast] = useState<string | null>(null);
-  
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartItem, setCartItem] = useState<Product | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
   const handleAdd = (product: Product) => {
     onAddToCart({
       id: product.id,
@@ -86,8 +89,9 @@ export function CustomerStorefrontPage({
       freeDelivery: product.freeDelivery,
       prime: product.prime
     });
-    setToast(`"${product.name.slice(0, 30)}…" added to cart!`);
-    setTimeout(() => setToast(null), 3000);
+    setCartItem(product);
+    setCartOpen(true);
+    setTimeout(() => setCartOpen(false), 5000);
   };
 
   const handleBuyNow = (product: Product) => {
@@ -108,18 +112,69 @@ export function CustomerStorefrontPage({
     });
     onCartClick();
   };
+  const CartSideDrawer = (
+    <>
+      {cartOpen && cartItem && (
+        <div className="fixed top-[108px] right-0 bottom-0 w-80 bg-white shadow-[-5px_0_15px_rgba(0,0,0,0.1)] z-50 border-l border-[#D5D9D9] p-4 animate-in slide-in-from-right">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-[#0F1111] flex items-center gap-2"><CheckCircle className="w-5 h-5 text-[#007600]" /> Added to Cart</h2>
+            <button onClick={() => setCartOpen(false)} className="text-[#565959] hover:text-[#0F1111]">✕</button>
+          </div>
+          <div className="flex gap-3 mb-4">
+            <div className="w-16 h-16 bg-[#F7F8F8] border border-[#D5D9D9] rounded flex items-center justify-center text-3xl shrink-0">{cartItem.icon}</div>
+            <div>
+              <div className="text-sm text-[#0F1111] font-medium line-clamp-2 leading-tight mb-1">{cartItem.name}</div>
+              <div className="text-[#B12704] font-bold">₹{cartItem.price.toLocaleString('en-IN')}</div>
+            </div>
+          </div>
+          <button 
+            onClick={() => { setCartOpen(false); onCartClick(); }} 
+            className="w-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] text-[#0F1111] font-medium py-2 rounded-full mb-2">
+            Cart & Checkout
+          </button>
+          <button onClick={() => setCartOpen(false)} className="w-full border border-[#D5D9D9] hover:bg-[#F7F8F8] text-[#0F1111] font-medium py-2 rounded-full">Continue Shopping</button>
+        </div>
+      )}
+    </>
+  );
+
+  if (selectedProductId) {
+    const allProducts = [...FEATURED_PRODUCTS, ...TODAY_DEALS.map(d => ({
+      id: d.id, name: d.name, price: d.dealPrice, originalPrice: d.originalPrice,
+      rating: 4.5, reviews: 100, icon: d.icon, freeDelivery: true, prime: true
+    }))];
+    const product = allProducts.find(p => p.id === selectedProductId);
+    if (product) {
+      return (
+        <div className="min-h-screen bg-[#EAEDED] font-sans">
+          <CustomerProductDetailPage 
+            product={product} 
+            onBack={() => setSelectedProductId(null)} 
+            onAddToCart={(p) => handleAdd(p)} 
+            onBuyNow={(p) => handleBuyNow(p)}
+          />
+          {CartSideDrawer}
+        </div>
+      );
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#EAEDED] text-[#0F1111] font-sans">
       
+      {CartSideDrawer}
+
       {/* ═══ CUSTOMER NAVBAR — #131921 ═══════════════════════════════════════════ */}
       <header className="bg-[#131921] sticky top-0 z-50">
         <div className="flex items-center justify-between gap-2 px-4 py-2">
-          
+
           {/* Left: SecondLife AI Logo */}
-          <div 
+          <div
             className="flex flex-col items-start mr-2 shrink-0 border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer"
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            onClick={() => {
+              setSelectedProductId(null);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           >
             <div className="flex items-baseline gap-0.5">
               <span className="text-white font-bold text-xl leading-tight tracking-tight">SecondLife</span>
@@ -149,7 +204,7 @@ export function CustomerStorefrontPage({
 
           {/* Right Navigation */}
           <div className="flex items-center gap-2 shrink-0 ml-1">
-            
+
             {/* Account Switcher Trigger */}
             <div className="relative flex flex-col border border-transparent hover:border-white rounded px-2 py-1">
               <span className="text-[#CCCCCC] text-[10px] leading-tight">Hello, Sign In</span>
@@ -171,7 +226,7 @@ export function CustomerStorefrontPage({
             </div>
 
             {/* Orders */}
-            <div 
+            <div
               onClick={onOrdersClick}
               className="hidden md:flex flex-col border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer"
             >
@@ -180,7 +235,7 @@ export function CustomerStorefrontPage({
             </div>
 
             {/* Cart */}
-            <div 
+            <div
               onClick={onCartClick}
               className="relative flex items-end border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer"
             >
@@ -205,7 +260,7 @@ export function CustomerStorefrontPage({
             </span>
             All
           </button>
-          
+
           {['Today\'s Deals', 'Electronics', 'Fashion', 'Home', 'Books', 'Computers', 'Accessories'].map((item) => (
             <button
               key={item}
@@ -229,7 +284,7 @@ export function CustomerStorefrontPage({
       </header>
 
       {/* ─── HERO PROMO BANNER ─── */}
-      <section 
+      <section
         className="relative overflow-hidden w-full min-h-[380px] flex items-center px-6 md:px-12 py-12"
         style={{
           background: 'linear-gradient(90deg, #131921 0%, #232F3E 50%, rgba(35, 47, 62, 0.5) 85%), url("/eco_shopping_banner.png")',
@@ -250,13 +305,13 @@ export function CustomerStorefrontPage({
             Find great deals on electronics, fashion, home essentials, and more. Fast delivery and certified customer guarantees on all purchases.
           </p>
           <div className="flex flex-wrap items-center gap-3 pt-3">
-            <a 
+            <a
               href="#featured-products"
               className="bg-[#FF9900] hover:bg-[#E08800] text-gray-900 font-extrabold px-8 py-2.5 rounded-full text-xs shadow-sm hover:shadow transition-all text-center block w-full sm:w-auto cursor-pointer"
             >
               Shop Now
             </a>
-            <button 
+            <button
               onClick={onNavigateToSecondLife}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-8 py-2.5 rounded-full text-xs border border-emerald-500 shadow-md hover:shadow-lg transition-all text-center block w-full sm:w-auto cursor-pointer flex items-center justify-center gap-1.5"
             >
@@ -264,7 +319,7 @@ export function CustomerStorefrontPage({
             </button>
           </div>
         </div>
-        
+
         {/* Subtle bottom curve fading into content */}
         <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-[#EAEDED] to-transparent pointer-events-none" />
       </section>
@@ -273,8 +328,8 @@ export function CustomerStorefrontPage({
       <section className="max-w-7xl mx-auto px-4 -mt-10 relative z-20 mb-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {CATEGORIES.map((cat) => (
-            <div 
-              key={cat.label} 
+            <div
+              key={cat.label}
               className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm text-center space-y-2 hover:shadow hover:-translate-y-1 transition-all duration-300 cursor-pointer"
             >
               <div className={`w-14 h-14 mx-auto rounded-full ${cat.bg} flex items-center justify-center text-3xl shadow-inner`}>
@@ -294,12 +349,12 @@ export function CustomerStorefrontPage({
             <ShoppingBag className="w-5 h-5 text-[#FF9900]" />
             <h2 className="text-xl font-bold text-gray-900 tracking-tight">Featured Retail Products</h2>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {FEATURED_PRODUCTS.map((product) => {
               const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
               return (
-                <div 
+                <div
                   key={product.id}
                   className="bg-white border border-[#D5D9D9] rounded flex flex-col h-full hover:shadow-lg transition-all duration-300 relative group overflow-hidden"
                 >
@@ -326,7 +381,7 @@ export function CustomerStorefrontPage({
                       <span className="font-semibold text-sm text-[#0F1111] group-hover:text-[#C7511F] hover:underline line-clamp-2 leading-snug cursor-pointer">
                         {product.name}
                       </span>
-                      
+
                       {/* Rating details */}
                       <div className="flex items-center gap-1">
                         <div className="flex">
@@ -383,16 +438,16 @@ export function CustomerStorefrontPage({
       <section className="max-w-7xl mx-auto px-4 mb-8">
         <div className="bg-gradient-to-r from-[#0F5132] to-[#146c43] border border-emerald-800 text-white rounded-lg p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-md relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.2),transparent_50%)] pointer-events-none" />
-          
+
           <div className="space-y-4 max-w-2xl relative z-10">
             <div className="inline-flex items-center gap-1 bg-emerald-500/20 border border-emerald-400/30 rounded-full px-3 py-0.5 text-xs font-bold text-emerald-300">
               <Recycle className="w-3.5 h-3.5" /> Amazon Circular Ecosystem
             </div>
-            
+
             <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
               Give Products a Meaningful Second Life
             </h2>
-            
+
             <p className="text-emerald-150 text-sm leading-relaxed">
               Buy certified refurbished products, earn eco credits, and reduce waste through our AI-powered sustainable commerce ecosystem. Keep returns in circulation and list your own items for trade-in incentives.
             </p>
@@ -434,7 +489,7 @@ export function CustomerStorefrontPage({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {TODAY_DEALS.map((deal) => (
-              <div 
+              <div
                 key={deal.id}
                 className="bg-white border border-[#D5D9D9] rounded p-4 flex gap-4 hover:border-[#FF9900] transition-colors duration-200 cursor-pointer shadow-2xs"
               >
@@ -527,14 +582,6 @@ export function CustomerStorefrontPage({
           </div>
         </div>
       </footer>
-
-      {/* ─── TOAST NOTIFICATION ─── */}
-      {toast && (
-        <div className="fixed bottom-6 right-4 z-50 bg-[#131921] text-white px-4 py-3.5 rounded shadow-2xl flex items-center gap-2 max-w-sm border border-gray-800 animate-slide-in">
-          <CheckCircle className="w-5 h-5 text-[#FF9900] shrink-0" />
-          <span className="text-xs font-semibold">{toast}</span>
-        </div>
-      )}
 
     </div>
   );

@@ -26,12 +26,13 @@ interface AmazonShellProps {
   onCartClick?: () => void;
   cartCount?: number;
   greenCoins?: number;
+  onCoinsClick?: () => void;
   coinAnimating?: boolean;
   children: ReactNode;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export function AmazonShell({ persona, setPersona, onHomeClick, onOrdersClick, onCartClick, cartCount = 0, greenCoins = 150, coinAnimating = false, children }: AmazonShellProps) {
+export function AmazonShell({ persona, setPersona, onHomeClick, onOrdersClick, onCartClick, onCoinsClick, cartCount = 0, greenCoins = 150, coinAnimating = false, children }: AmazonShellProps) {
   const meta = PERSONA_META[persona];
 
   return (
@@ -85,7 +86,10 @@ export function AmazonShell({ persona, setPersona, onHomeClick, onOrdersClick, o
           <div className="flex items-center gap-0.5 shrink-0 ml-1">
 
             {/* Green Coins — Dynamic */}
-            <div className={`hidden sm:flex flex-col border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer transition-all duration-300 ${coinAnimating ? 'scale-125 border-[#FF9900]! bg-[#FF9900]/20' : ''}`}>
+            <div 
+              onClick={onCoinsClick}
+              className={`hidden sm:flex flex-col border border-transparent hover:border-white rounded px-2 py-1 cursor-pointer transition-all duration-300 ${coinAnimating ? 'scale-125 border-[#FF9900]! bg-[#FF9900]/20' : ''}`}
+            >
               <span className="text-[#CCCCCC] text-[10px] leading-tight">Green</span>
               <div className="flex items-center gap-1">
                 <Coins className={`w-3.5 h-3.5 text-[#FF9900] ${coinAnimating ? 'animate-bounce' : ''}`} />
