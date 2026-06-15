@@ -278,9 +278,31 @@ function App() {
           </div>
           {/* Flow content */}
           {activeFlow === 'seller' && <ViewA onEarnCoins={handleEarnCoins} orders={orders.rahul} soldItems={soldItems} onItemSold={handleItemSold} />}
-          {activeFlow === 'returner' && <ViewB orders={orders[persona]} onEarnCoins={handleEarnCoins} onEcoBridgeReturn={(order) => {
-            // EcoBridge return: mark as sold so it appears in admin dashboard
+          {activeFlow === 'returner' && <ViewB orders={orders[persona]} onEarnCoins={handleEarnCoins} onEcoBridgeReturn={(order, images, gradeData) => {
+            // EcoBridge return: mark as sold + add to P2P at ORIGINAL price
             setSoldItems(prev => new Set([...prev, order.id]));
+            const newP2PItem = {
+              id: `p2p_return_${order.id}_${Date.now()}`,
+              name: order.name + ' (AI Verified Return)',
+              price: order.price, // Original purchase price
+              originalPrice: order.originalPrice || order.price,
+              grade: gradeData?.condition === 'Like New' ? 'A' : gradeData?.condition === 'Good' ? 'B' : 'C',
+              rating: 4.7,
+              reviews: 1,
+              type: 'p2p' as const,
+              seller: persona === 'priya' ? 'Priya S.' : 'Returner',
+              aiScore: gradeData?.healthScore || 85,
+              greenCoins: Math.min(200, Math.max(30, Math.round(order.price * 0.05))),
+              co2Saved: '8.2 kg',
+              icon: order.icon || '♻️',
+              freeDelivery: true,
+              prime: true,
+              galleryImages: images || {},
+              condition: gradeData?.condition || 'Good',
+              labels: gradeData?.labels || [],
+              confidence: gradeData?.confidence || 85,
+            };
+            setApprovedP2PItems(prev => [newP2PItem, ...prev]);
           }} />}
           {activeFlow === 'buyer' && (
             <ViewC 
