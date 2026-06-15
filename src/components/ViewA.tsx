@@ -277,7 +277,9 @@ export function ViewA({ onEarnCoins, orders = [], soldItems = new Set(), onItemS
       
       // Map overall to final condition using proper cutoffs
       const finalCondFromScore = overall >= 85 ? 'Like New' : overall >= 65 ? 'Good' : overall >= 40 ? 'Acceptable' : 'Poor';
-      const credits = CREDIT_MAP[finalCondFromScore] || 800;
+      // Calculate coins based on actual product price: 5% of price, min 50, max 500
+      const productPrice = scanningOrder?.price || 4000;
+      const credits = Math.min(500, Math.max(50, Math.round(productPrice * 0.05)));
 
       const v2Result: GradeResultV2 = {
         version: "2",
@@ -581,7 +583,8 @@ export function ViewA({ onEarnCoins, orders = [], soldItems = new Set(), onItemS
   // ═══ ROUTED ═══
   if (step === 'routed') {
     const routeInfo = ROUTING_CONFIG[finalCondition] || ROUTING_CONFIG['Good'];
-    const credits = CREDIT_MAP[finalCondition] || gradeResult?.earned_coins || 800;
+    // Use actual earned coins from gradeResult, or calculate from product price
+    const credits = gradeResult?.earned_coins || Math.min(500, Math.max(50, Math.round((scanningOrder?.price || 4000) * 0.05)));
     const carbonSaved = CARBON_MAP[finalCondition] || '8.2kg CO2';
     const RouteIcon = routeInfo.icon;
 
@@ -625,41 +628,67 @@ export function ViewA({ onEarnCoins, orders = [], soldItems = new Set(), onItemS
   // ═══ ORDERS LIST ═══
   return (
     <div className="max-w-4xl mx-auto p-4 mt-2">
-      <h1 className="text-xl font-medium text-[#0F1111] mb-4">Your Orders — Sell on EcoBridge</h1>
+      <h1 className="text-xl font-medium text-[#0F1111] mb-4">Your Orders</h1>
       {orders.length === 0 ? (
         <div className="bg-white border border-[#D5D9D9] rounded p-10 text-center shadow-sm">
           <Package className="w-16 h-16 text-[#D5D9D9] mx-auto mb-4" />
-          <h2 className="text-lg font-bold text-[#0F1111] mb-2">No items to sell yet</h2>
-          <p className="text-sm text-[#565959]">Switch to Amit (Buyer) → Purchase items → They appear here for you to scan.</p>
+          <h2 className="text-lg font-bold text-[#0F1111] mb-2">No orders yet</h2>
+          <p className="text-sm text-[#565959]">Your purchased items will appear here.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {orders.map(order => {
             const isSold = soldItems.has(order.id);
             return (
-              <div key={order.id} className={`bg-white rounded overflow-hidden ${isSold ? 'border border-[#D5D9D9] opacity-70' : 'border-2 border-[#007600]'}`}>
-                <div className={`${isSold ? 'bg-[#F0F2F2]' : 'bg-[#E7F4E4]'} border-b ${isSold ? 'border-[#D5D9D9]' : 'border-[#C3E6C0]'} px-4 py-2 flex items-center justify-between`}>
-                  <div className="flex gap-6 text-xs text-[#565959]">
-                    <div><span className="uppercase text-[10px] block font-medium">Placed</span>{order.datePlaced}</div>
+              <div key={order.id} className="bg-white border border-[#D5D9D9] rounded overflow-hidden">
+                {/* Order header — standard Amazon style */}
+                <div className="bg-[#F0F2F2] border-b border-[#D5D9D9] px-4 py-2 flex items-center justify-between text-xs text-[#565959]">
+                  <div className="flex gap-6">
+                    <div><span className="uppercase text-[10px] block font-medium">Order placed</span>{order.datePlaced}</div>
                     <div><span className="uppercase text-[10px] block font-medium">Total</span>₹{order.price.toLocaleString('en-IN')}</div>
                   </div>
-                  {isSold ? <div className="flex items-center gap-1 bg-[#232F3E] text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><CheckCircle className="w-3 h-3" /> Listed</div> : <div className="flex items-center gap-1 bg-[#007600] text-white text-[10px] font-bold px-2 py-0.5 rounded-full"><Leaf className="w-3 h-3" /> Eligible</div>}
+                  <div className="text-[10px]">ORDER# {order.orderId || '---'}</div>
                 </div>
+
+                {/* Order body */}
                 <div className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div className="flex items-center">
-                    <div className="w-14 h-14 bg-[#F7F8F8] rounded flex items-center justify-center mr-4 border border-[#D5D9D9] text-2xl">{order.icon || '📦'}</div>
+                    <div className="w-16 h-16 bg-[#F7F8F8] rounded flex items-center justify-center mr-4 border border-[#D5D9D9] text-3xl">{order.icon || '📦'}</div>
                     <div>
-                      <span className="text-[#007185] font-medium text-sm">{order.name}</span>
-                      <p className={`text-xs font-medium mt-0.5 ${isSold ? 'text-[#565959]' : 'text-[#007600]'}`}>{isSold ? '✓ Listed on P2P' : order.status}</p>
+                      <span className="text-[#007185] hover:text-[#C7511F] font-medium text-sm">{order.name}</span>
+                      <p className="text-xs text-[#007600] font-medium mt-0.5">
+                        {isSold ? '✓ Listed on EcoBridge Marketplace' : 'Delivered'}
+                      </p>
                     </div>
                   </div>
-                  {!isSold && (
-                    <button onClick={() => handleStartScan(order)} className="bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] text-[#0F1111] rounded-full px-4 py-2 text-sm font-bold flex items-center gap-1.5">
-                      <Camera className="w-4 h-4" /> Multi-Angle Scan
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex flex-col gap-2 w-full md:w-auto">
+                    {isSold ? (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E7F4E4] border border-[#C3E6C0] rounded-full text-xs text-[#007600] font-bold">
+                        <CheckCircle className="w-3.5 h-3.5" /> Listed on EcoBridge
+                      </div>
+                    ) : (
+                      <>
+                        <button className="bg-[#F0F2F2] hover:bg-[#E3E6E6] border border-[#D5D9D9] rounded-full px-4 py-1.5 text-sm font-medium text-[#0F1111] transition-colors w-full md:w-auto">
+                          Buy it again
+                        </button>
+                        <button onClick={() => handleStartScan(order)} className="bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] text-[#0F1111] rounded-full px-4 py-2 text-sm font-bold flex items-center justify-center gap-1.5 transition-colors w-full md:w-auto">
+                          <Leaf className="w-4 h-4 text-[#007600]" /> Sell on EcoBridge
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
+
+                {/* EcoBridge eligible banner (subtle, below the order) */}
+                {!isSold && (
+                  <div className="bg-[#FFFBF0] border-t border-[#FFD814]/30 px-4 py-2 flex items-center gap-2">
+                    <Leaf className="w-3.5 h-3.5 text-[#007600]" />
+                    <span className="text-[10px] text-[#565959]">This item is <span className="font-bold text-[#007600]">EcoBridge Eligible</span> — scan & sell locally to earn Green Coins</span>
+                  </div>
+                )}
               </div>
             );
           })}

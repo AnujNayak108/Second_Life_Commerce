@@ -124,7 +124,7 @@ function App() {
       const newP2PItem = {
         id: `p2p_${orderId}_${Date.now()}`,
         name: order.name + ' (AI Verified)',
-        price: Math.round((order.price || 4000) * 0.65),
+        price: Math.round((order.price || 4000) * 0.50),
         originalPrice: order.price || 4000,
         grade: gradeData?.condition === 'Like New' ? 'A' : gradeData?.condition === 'Good' ? 'B' : 'C',
         rating: 4.7,

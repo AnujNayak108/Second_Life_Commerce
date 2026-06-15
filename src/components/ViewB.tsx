@@ -37,7 +37,20 @@ export function ViewB({ orders = [], onEarnCoins, onEcoBridgeReturn }: { orders?
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
   const [selectedReason, setSelectedReason] = useState<string>('');
   const [otherReason, setOtherReason] = useState('');
-  const [returnedItems, setReturnedItems] = useState<Record<string, { type: 'ecobridge' | 'normal'; reason: string }>>({});
+  
+  // Persist returned items in localStorage so they survive refresh
+  const [returnedItems, setReturnedItems] = useState<Record<string, { type: 'ecobridge' | 'normal'; reason: string }>>(() => {
+    try { const stored = localStorage.getItem('ecobridge_returnedItems'); return stored ? JSON.parse(stored) : {}; } catch { return {}; }
+  });
+
+  // Save to localStorage whenever returnedItems changes
+  const updateReturnedItems = (updater: (prev: Record<string, { type: 'ecobridge' | 'normal'; reason: string }>) => Record<string, { type: 'ecobridge' | 'normal'; reason: string }>) => {
+    setReturnedItems(prev => {
+      const next = updater(prev);
+      try { localStorage.setItem('ecobridge_returnedItems', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
 
   const handleReturnClick = (order: OrderItem) => {
     setSelectedOrder(order);
@@ -47,7 +60,6 @@ export function ViewB({ orders = [], onEarnCoins, onEcoBridgeReturn }: { orders?
   };
 
   const handleReasonSubmit = () => {
-    // After reason is collected, show the EcoBridge/Normal choice popup
     setShowReasonForm(false);
     setShowPopup(true);
   };
@@ -55,8 +67,10 @@ export function ViewB({ orders = [], onEarnCoins, onEcoBridgeReturn }: { orders?
   const handleEcoBridgeReturn = () => {
     if (selectedOrder) {
       const reason = selectedReason === 'other' ? otherReason : RETURN_REASONS.find(r => r.id === selectedReason)?.label || selectedReason;
-      setReturnedItems(prev => ({ ...prev, [selectedOrder.id]: { type: 'ecobridge', reason } }));
-      if (onEarnCoins) onEarnCoins(50);
+      updateReturnedItems(prev => ({ ...prev, [selectedOrder.id]: { type: 'ecobridge', reason } }));
+      // Coins based on product price: 5% of product price (minimum 30, maximum 200)
+      const earnedCoins = Math.min(200, Math.max(30, Math.round(selectedOrder.price * 0.05)));
+      if (onEarnCoins) onEarnCoins(earnedCoins);
       if (onEcoBridgeReturn) onEcoBridgeReturn(selectedOrder);
     }
     setShowPopup(false);
@@ -65,8 +79,8 @@ export function ViewB({ orders = [], onEarnCoins, onEcoBridgeReturn }: { orders?
   const handleNormalReturn = () => {
     if (selectedOrder) {
       const reason = selectedReason === 'other' ? otherReason : RETURN_REASONS.find(r => r.id === selectedReason)?.label || selectedReason;
-      setReturnedItems(prev => ({ ...prev, [selectedOrder.id]: { type: 'normal', reason } }));
-      if (onEarnCoins) onEarnCoins(20);
+      updateReturnedItems(prev => ({ ...prev, [selectedOrder.id]: { type: 'normal', reason } }));
+      // Normal return: 0 coins (no sustainability benefit)
     }
     setShowPopup(false);
   };
@@ -244,13 +258,13 @@ export function ViewB({ orders = [], onEarnCoins, onEcoBridgeReturn }: { orders?
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-[#E7F4E4] border border-[#C3E6C0] rounded p-3 text-center">
                   <div className="text-[9px] text-[#565959] uppercase font-semibold mb-1">EcoBridge</div>
-                  <div className="text-sm font-bold text-[#007600]">+50 🪙</div>
+                  <div className="text-sm font-bold text-[#007600]">+{Math.min(200, Math.max(30, Math.round((selectedOrder?.price || 4000) * 0.05)))} 🪙</div>
                   <div className="text-[9px] text-[#565959] mt-0.5">Green Coins</div>
                 </div>
                 <div className="bg-[#F7F8F8] border border-[#D5D9D9] rounded p-3 text-center">
                   <div className="text-[9px] text-[#565959] uppercase font-semibold mb-1">Normal Return</div>
-                  <div className="text-sm font-bold text-[#565959]">+20 🪙</div>
-                  <div className="text-[9px] text-[#565959] mt-0.5">Green Coins</div>
+                  <div className="text-sm font-bold text-[#565959]">0 🪙</div>
+                  <div className="text-[9px] text-[#565959] mt-0.5">No Coins</div>
                 </div>
               </div>
 
@@ -264,7 +278,7 @@ export function ViewB({ orders = [], onEarnCoins, onEcoBridgeReturn }: { orders?
                 <button 
                   onClick={handleEcoBridgeReturn}
                   className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-[#0F1111] font-bold py-3 rounded-full border border-[#FCD200] transition-colors flex justify-center items-center gap-2 text-sm">
-                  <Leaf className="w-4 h-4 text-[#007600]" /> List on EcoBridge · Earn +50 🪙
+                  <Leaf className="w-4 h-4 text-[#007600]" /> List on EcoBridge · Earn +{Math.min(200, Math.max(30, Math.round((selectedOrder?.price || 4000) * 0.05)))} 🪙
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
                 <button 
