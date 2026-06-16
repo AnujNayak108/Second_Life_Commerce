@@ -27,7 +27,7 @@ function saveState(key: string, value: any) {
 }
 
 function App() {
-  const [persona, setPersona] = useState<Persona>('storefront');
+  const [persona, setPersona] = useState<Persona>('rahul');
   const [activeFlow, setActiveFlow] = useState<ActiveFlow>(null);
   const [showRedeem, setShowRedeem] = useState(false);
   const [homeKey, setHomeKey] = useState(0);
